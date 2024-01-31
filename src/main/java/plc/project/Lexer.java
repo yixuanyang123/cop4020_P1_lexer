@@ -1,6 +1,8 @@
 package plc.project;
 
 import java.util.List;
+import java.util.ArrayList;
+
 
 /**
  * The lexer works through three main functions:
@@ -27,8 +29,18 @@ public final class Lexer {
      * whitespace where appropriate.
      */
     public List<Token> lex() {
-        throw new UnsupportedOperationException(); //TODO
-    }
+        List<Token> tokens = new ArrayList<>();
+        while (chars.has(0)) { // While there are characters left to lex
+            if (peek("\\s")) { // Skip whitespace
+                chars.advance();
+                chars.skip();
+            }
+            else {
+                tokens.add(lexToken()); // Add the next token
+            }
+        }
+        return tokens;
+    } //TODO
 
     /**
      * This method determines the type of the next token, delegating to the
@@ -39,32 +51,169 @@ public final class Lexer {
      * by {@link #lex()}
      */
     public Token lexToken() {
-        throw new UnsupportedOperationException(); //TODO
-    }
+        if (peek("[a-zA-Z_\\-@]")) {
+            return lexIdentifier();
+        }
+        else if (peek("[0-9]")) {
+            return lexNumber();
+        }
+        else if (peek("-")) {
+            if (chars.has(1) && String.valueOf(chars.get(1)).matches("[0-9]")) {
+                return lexNumber(); // Now we know the '-' is followed by a digit
+            } else {
+                throw new ParseException("Expected a digit after '-'", chars.index);
+            }
+        }
+        else if (peek("'")) {
+            return lexCharacter();
+        }
+        else if (peek("\"")) {
+            return lexString();
+        }
+        else if (peek("[!<>]=?|==|&&|\\|\\||[\\(\\)\\[\\]\\{\\}\\.,;]")) {
+            return lexOperator();
+        }
+        else {
+            throw new ParseException("Unexpected character: " + chars.get(0), chars.index);
+        }
+    } //TODO
 
     public Token lexIdentifier() {
-        throw new UnsupportedOperationException(); //TODO
-    }
+        if (!peek("[a-zA-Z_\\-@]")) {
+            throw new ParseException("Expected an identifier", chars.index);
+        }
+        int startIndex = chars.index;
+        chars.advance(); // Consume the first character of the identifier
+        // Consume the rest of the identifier
+        while (peek("[a-zA-Z0-9_\\-]") && !peek("@")) {
+            chars.advance();
+        }
+        String value = chars.input.substring(startIndex, chars.index);
+        if (value.contains("@") && value.charAt(0) != '@') {
+            throw new ParseException("Invalid '@' inside identifier", chars.index);
+        }
+        return chars.emit(Token.Type.IDENTIFIER);
+    } //TODO
 
     public Token lexNumber() {
-        throw new UnsupportedOperationException(); //TODO
-    }
+        StringBuilder number = new StringBuilder();
+        boolean isDecimal = false;
+        int startIndex = chars.index;
+        // Optional leading minus sign
+        if (peek("-")) {
+            number.append("-");
+            chars.advance();
+        }
+        // Leading digit(s)
+        if (!peek("[1-9]", "[0-9]*") && !peek("0")) {
+            throw new ParseException("Expected an integer or decimal", chars.index);
+        }
+        // Consume leading integer part
+        while (peek("[0-9]")) {
+            number.append(chars.get(0));
+            chars.advance();
+        }
+        // Decimal part
+        if (peek("\\.")) {
+            isDecimal = true;
+            number.append(".");
+            chars.advance();
+            // There must be at least one digit after the decimal point
+            if (!peek("[0-9]")) {
+                throw new ParseException("Expected a digit after decimal point", chars.index);
+            }
+            // Consume fractional part
+            while (peek("[0-9]")) {
+                number.append(chars.get(0));
+                chars.advance();
+            }
+        }
+        if (isDecimal) {
+            return chars.emit(Token.Type.DECIMAL);
+        }
+        else {
+            return chars.emit(Token.Type.INTEGER);
+        }
+    }  //TODO
 
     public Token lexCharacter() {
-        throw new UnsupportedOperationException(); //TODO
-    }
+        if (!match("'")) { // Start of character literal
+            throw new ParseException("Expected start of character literal.", chars.index);
+        }
+        if (peek("\\\\")) { // Escape sequence
+            chars.advance(); // Consume backslash
+            if (!peek("[bnrt'\\\\]")) { // Check valid escape sequence
+                throw new ParseException("Invalid escape sequence.", chars.index);
+            }
+            chars.advance(); // Consume escape character
+        }
+        else {
+            if (!peek("[^']")) { // Check for non-quote character
+                throw new ParseException("Empty character literal.", chars.index);
+            }
+            chars.advance(); // Consume character
+        }
+        if (!match("'")) { // End of character literal
+            throw new ParseException("Expected end of character literal.", chars.index);
+        }
+        return chars.emit(Token.Type.CHARACTER);
+    } //TODO
 
     public Token lexString() {
-        throw new UnsupportedOperationException(); //TODO
-    }
+        if (!match("\"")) { // Beginning of string literal
+            throw new ParseException("Expected start of string literal.", chars.index);
+        }
+        while (true) {
+            if (peek("\"")) { // End of string literal
+                break;
+            }
+            else if (peek("\\\\")) { // Escape sequence
+                chars.advance(); // Consume backslash
+                if (!peek("[bnrt'\"\\\\]")) { // Check valid escape sequence
+                    throw new ParseException("Invalid escape sequence.", chars.index);
+                }
+                chars.advance(); // Consume escape character
+            }
+            else if (peek("[^\n\r\"\\\\]")) { // Any other character
+                chars.advance();
+            }
+            else { // Invalid character or end of line without closing quote
+                throw new ParseException("Unterminated string literal.", chars.index);
+            }
+        }
+        match("\""); // Consume the closing quote
+        return chars.emit(Token.Type.STRING);
+    } //TODO
 
     public void lexEscape() {
-        throw new UnsupportedOperationException(); //TODO
-    }
+        if (peek("\\\\")) { // If escape sequence
+            chars.advance(); // Consume backslash
+            if (!peek("[bnrt'\"\\\\]")) { // Valid escape sequences
+                throw new ParseException("Invalid escape sequence", chars.index);
+            }
+            chars.advance(); // Consume the character following the backslash
+        }
+        else {
+            throw new ParseException("Expected escape sequence", chars.index);
+        }
+    }  //TODO
 
     public Token lexOperator() {
-        throw new UnsupportedOperationException(); //TODO
-    }
+        if (peek("[!<>]=?|==|&&|\\|\\||[\\(\\)\\[\\]\\{\\}\\.,;]")) {
+            // Consume the operator character(s)
+            if (peek("==") || peek("!=") || peek("<=") || peek(">=") || peek("&&") || peek("\\|\\|")) {
+                chars.advance(); // Consume first character of operator
+                chars.advance(); // Consume second character of operator
+            }
+            else {
+                chars.advance(); // Consume single character operator
+            }
+            return chars.emit(Token.Type.OPERATOR);
+        }
+        else {
+            throw new ParseException("Expected operator.", chars.index);
+        }
+    }  //TODO
 
     /**
      * Returns true if the next sequence of characters match the given patterns,
@@ -77,7 +226,7 @@ public final class Lexer {
                 return false;
             }
         }
-         return true;
+        return true;
     } //TODO (in Lecture)
 
     /**
@@ -135,7 +284,5 @@ public final class Lexer {
             skip();
             return new Token(type, input.substring(start, index), start);
         }
-
     }
-
 }
