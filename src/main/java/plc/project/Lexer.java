@@ -138,30 +138,30 @@ public final class Lexer {
 
     public Token lexCharacter() {
         if (!match("'")) { // Start of character literal
-            throw new ParseException("Expected start of character literal.", chars.index);
+            throw new ParseException("Expected start of character literal", chars.index);
         }
         if (peek("\\\\")) { // Escape sequence
             chars.advance(); // Consume backslash
             if (!peek("[bnrt'\\\\]")) { // Check valid escape sequence
-                throw new ParseException("Invalid escape sequence.", chars.index);
+                throw new ParseException("Invalid escape sequence", chars.index);
             }
             chars.advance(); // Consume escape character
         }
         else {
             if (!peek("[^']")) { // Check for non-quote character
-                throw new ParseException("Empty character literal.", chars.index);
+                throw new ParseException("Empty character literal", chars.index);
             }
             chars.advance(); // Consume character
         }
         if (!match("'")) { // End of character literal
-            throw new ParseException("Expected end of character literal.", chars.index);
+            throw new ParseException("Expected end of character literal", chars.index);
         }
         return chars.emit(Token.Type.CHARACTER);
     } //TODO
 
     public Token lexString() {
         if (!match("\"")) { // Beginning of string literal
-            throw new ParseException("Expected start of string literal.", chars.index);
+            throw new ParseException("Expected start of string literal", chars.index);
         }
         while (true) {
             if (peek("\"")) { // End of string literal
@@ -170,7 +170,7 @@ public final class Lexer {
             else if (peek("\\\\")) { // Escape sequence
                 chars.advance(); // Consume backslash
                 if (!peek("[bnrt'\"\\\\]")) { // Check valid escape sequence
-                    throw new ParseException("Invalid escape sequence.", chars.index);
+                    throw new ParseException("Invalid escape sequence", chars.index);
                 }
                 chars.advance(); // Consume escape character
             }
@@ -178,7 +178,7 @@ public final class Lexer {
                 chars.advance();
             }
             else { // Invalid character or end of line without closing quote
-                throw new ParseException("Unterminated string literal.", chars.index);
+                throw new ParseException("Unterminated string literal", chars.index);
             }
         }
         match("\""); // Consume the closing quote
@@ -211,7 +211,7 @@ public final class Lexer {
             return chars.emit(Token.Type.OPERATOR);
         }
         else {
-            throw new ParseException("Expected operator.", chars.index);
+            throw new ParseException("Expected operator", chars.index);
         }
     }  //TODO
 
