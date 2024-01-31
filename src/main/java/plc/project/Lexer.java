@@ -253,7 +253,6 @@ public final class Lexer {
      * ParseException} which is thrown.
      */
     public static final class CharStream {
-
         private final String input;
         private int index = 0;
         private int length = 0;
