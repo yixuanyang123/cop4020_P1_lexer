@@ -60,7 +60,8 @@ public final class Lexer {
         else if (peek("-")) {
             if (chars.has(1) && String.valueOf(chars.get(1)).matches("[0-9]")) {
                 return lexNumber(); // Now we know the '-' is followed by a digit
-            } else {
+            }
+            else {
                 throw new ParseException("Expected a digit after '-'", chars.index);
             }
         }
@@ -79,19 +80,20 @@ public final class Lexer {
     } //TODO
 
     public Token lexIdentifier() {
-        if (!peek("[a-zA-Z_\\-@]")) {
+        // Check if the first character is a letter or underscore
+        if (!peek("[a-zA-Z_]")) {
             throw new ParseException("Expected an identifier", chars.index);
         }
         int startIndex = chars.index;
         chars.advance(); // Consume the first character of the identifier
         // Consume the rest of the identifier
-        while (peek("[a-zA-Z0-9_\\-]") && !peek("@")) {
+        // Allow letters, digits, underscores, and hyphens (except for the start)
+        while (peek("[a-zA-Z0-9_\\-]")) {
             chars.advance();
         }
+        // Extract the identifier value
         String value = chars.input.substring(startIndex, chars.index);
-        if (value.contains("@") && value.charAt(0) != '@') {
-            throw new ParseException("Invalid '@' inside identifier", chars.index);
-        }
+        // Return the token
         return chars.emit(Token.Type.IDENTIFIER);
     } //TODO
 
@@ -105,13 +107,24 @@ public final class Lexer {
             chars.advance();
         }
         // Leading digit(s)
-        if (!peek("[1-9]", "[0-9]*") && !peek("0")) {
+        if (!peek("[0-9]")) { // Check for any digit
             throw new ParseException("Expected an integer or decimal", chars.index);
         }
-        // Consume leading integer part
-        while (peek("[0-9]")) {
-            number.append(chars.get(0));
+        // Special handling for leading zero
+        if (peek("0")) {
+            number.append("0");
             chars.advance();
+            // If there's another digit following the zero, it's an error (for integers)
+            if (peek("[0-9]")) {
+                throw new ParseException("Invalid integer format with leading zero", chars.index);
+            }
+        }
+        else {
+            // Consume leading integer part (for non-zero starting integers)
+            while (peek("[1-9]")) {
+                number.append(chars.get(0));
+                chars.advance();
+            }
         }
         // Decimal part
         if (peek("\\.")) {
@@ -134,7 +147,7 @@ public final class Lexer {
         else {
             return chars.emit(Token.Type.INTEGER);
         }
-    }  //TODO
+    } //TODO
 
     public Token lexCharacter() {
         if (!match("'")) { // Start of character literal
@@ -213,7 +226,7 @@ public final class Lexer {
         else {
             throw new ParseException("Expected operator", chars.index);
         }
-    }  //TODO
+    } //TODO
 
     /**
      * Returns true if the next sequence of characters match the given patterns,
