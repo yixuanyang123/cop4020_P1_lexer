@@ -210,29 +210,50 @@ public final class Lexer {
     }  //TODO
 
     public Token lexOperator() {
-        if (peek("==|!=|<=|>=|&&|\\|\\|")) {
-            // Consume the operator character(s)
-            if (chars.has(0)) { // Ensure there's at least one character to check
-                char firstChar = chars.get(0);
-                if (firstChar == '=' || firstChar == '!' || firstChar == '<' || firstChar == '>' || firstChar == '&' || firstChar == '|') {
-                    chars.advance(); // Consume first character of potential operator
-                    if (chars.has(0)) { // Check if there's another character
-                        char secondChar = chars.get(0);
-                        // Check if the second character forms a valid two-character operator with the first
-                        if ((firstChar == '=' && secondChar == '=') ||
-                                (firstChar == '!' && secondChar == '=') ||
-                                (firstChar == '<' && secondChar == '=') ||
-                                (firstChar == '>' && secondChar == '=') ||
-                                (firstChar == '&' && secondChar == '&') ||
-                                (firstChar == '|' && secondChar == '|')) {
-                            chars.advance(); // Consume second character of operator
-                            return chars.emit(Token.Type.OPERATOR);
+        if(chars.has(0) && chars.has(1))
+        {
+            String twoString = String.valueOf(chars.get(0))+ String.valueOf(chars.get(1));
+
+            if (twoString.matches("==|!=|<=|>=|&&|\\|\\|")) {
+                // Consume the operator character(s)
+                if (chars.has(0)) { // Ensure there's at least one character to check
+                    char firstChar = chars.get(0);
+                    if (firstChar == '=' || firstChar == '!' || firstChar == '<' || firstChar == '>' || firstChar == '&' || firstChar == '|') {
+                        chars.advance(); // Consume first character of potential operator
+                        if (chars.has(0)) { // Check if there's another character
+                            char secondChar = chars.get(0);
+                            // Check if the second character forms a valid two-character operator with the first
+                            if ((firstChar == '=' && secondChar == '=') ||
+                                    (firstChar == '!' && secondChar == '=') ||
+                                    (firstChar == '<' && secondChar == '=') ||
+                                    (firstChar == '>' && secondChar == '=') ||
+                                    (firstChar == '&' && secondChar == '&') ||
+                                    (firstChar == '|' && secondChar == '|')) {
+                                chars.advance(); // Consume second character of operator
+                                return chars.emit(Token.Type.OPERATOR);
+                            }
                         }
                     }
                 }
+                return chars.emit(Token.Type.OPERATOR);
             }
-            return chars.emit(Token.Type.OPERATOR);
+            else if (peek("[!<>]|=|\\||&|[\\(\\)\\[\\]\\{\\}\\.,;]")) {
+                // Consume the single character of the operator
+                if (chars.has(0))
+                {
+                    char a = chars.get(0);
+                    chars.advance();
+                }
+                else {
+                    chars.advance();
+                }
+                return chars.emit(Token.Type.OPERATOR); // Emit the operator token with the single-character value
+            }
+            else {
+                throw new ParseException("Expected operator", chars.index);
+            }
         }
+
         else if (peek("[!<>]|=|\\||&|[\\(\\)\\[\\]\\{\\}\\.,;]")) {
             // Consume the single character of the operator
             if (chars.has(0))
