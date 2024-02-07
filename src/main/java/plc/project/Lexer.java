@@ -59,10 +59,10 @@ public final class Lexer {
                 return lexNumber(); // Now we know the '-' is followed by a digit
             }
             else {
-                throw new ParseException("Expected a digit after '-'", chars.index);
+                return lexOperator();
             }
         }
-        else if (peek("[a-zA-Z_\\-@]")) {
+        else if (peek("@|[A-Za-z]")) {
             return lexIdentifier();
         }
         else if (peek("'")) {
@@ -71,19 +71,26 @@ public final class Lexer {
         else if (peek("\"")) {
             return lexString();
         }
-        else if (peek("[!<>]=?|==|=|&&|\\|\\||[\\(\\)\\[\\]\\{\\}\\.,;]")) {
+        else if (peek("[\\S&&[^\\x08]]")) {
             return lexOperator();
         }
         else {
-            throw new ParseException("Unexpected character: " + chars.get(0), chars.index);
+            if(chars.has(0))
+            {
+                throw new ParseException("Unexpected character: " + chars.get(0), chars.index);
+            }
+            else
+            {
+                throw new ParseException("Empty", chars.index);
+            }
         }
     } //TODO
 
     public Token lexIdentifier() {
         // Check if the first character is a letter or underscore
-        if (!peek("[a-zA-Z_]")) {
-            throw new ParseException("Expected an identifier", chars.index);
-        }
+//        if (!peek("[a-zA-Z_]")) {
+//            throw new ParseException("Expected an identifier", chars.index);
+//        }
         int startIndex = chars.index;
         chars.advance(); // Consume the first character of the identifier
         // Consume the rest of the identifier
@@ -104,6 +111,14 @@ public final class Lexer {
         // Optional leading minus sign
         if (peek("-")) {
             number.append("-");
+            if(chars.get(1) == '0')
+            {
+                if(!chars.has(2))
+                {
+                    chars.advance();
+                    return chars.emit(Token.Type.OPERATOR);
+                }
+            }
             chars.advance();
         }
         // Leading digit(s)
@@ -126,23 +141,24 @@ public final class Lexer {
         }
         // Decimal part
         if (peek("\\.")) {
-            isDecimal = true;
-            number.append(".");
-            chars.advance();
-            // There must be at least one digit after the decimal point
-            if (!peek("[0-9]")) {
-                throw new ParseException("Expected a digit after decimal point", chars.index);
-            }
-            // Consume fractional part
-            while (peek("[0-9]")) {
-                number.append(chars.get(0));
+            if(chars.has(1))
+            {
+                isDecimal = true;
+                number.append(".");
                 chars.advance();
+                // Consume fractional part
+                while (peek("[0-9]")) {
+                    number.append(chars.get(0));
+                    chars.advance();
+                }
             }
+
         }
         if (isDecimal) {
             return chars.emit(Token.Type.DECIMAL);
         }
         else {
+
             return chars.emit(Token.Type.INTEGER);
         }
     } //TODO
@@ -213,7 +229,6 @@ public final class Lexer {
         if(chars.has(0) && chars.has(1))
         {
             String twoString = String.valueOf(chars.get(0))+ String.valueOf(chars.get(1));
-
             if (twoString.matches("==|!=|<=|>=|&&|\\|\\|")) {
                 // Consume the operator character(s)
                 if (chars.has(0)) { // Ensure there's at least one character to check
@@ -237,7 +252,7 @@ public final class Lexer {
                 }
                 return chars.emit(Token.Type.OPERATOR);
             }
-            else if (peek("[!<>]|=|\\||&|[\\(\\)\\[\\]\\{\\}\\.,;]")) {
+            else if (peek("[\\S&&[^\\x08]]")) {
                 // Consume the single character of the operator
                 if (chars.has(0))
                 {
@@ -254,7 +269,7 @@ public final class Lexer {
             }
         }
 
-        else if (peek("[!<>]|=|\\||&|[\\(\\)\\[\\]\\{\\}\\.,;]")) {
+        else if (peek("[\\S&&[^\\x08]]")) {
             // Consume the single character of the operator
             if (chars.has(0))
             {
