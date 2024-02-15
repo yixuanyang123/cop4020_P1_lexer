@@ -144,6 +144,7 @@ public class LexerTests {
                 Arguments.of("Comparison", "!=", true),
                 Arguments.of("Character", "$", true),
                 Arguments.of("Character", "+", true),
+                Arguments.of("Character", "%", true),
                 Arguments.of("Character", "-", true),
                 Arguments.of("Character", "*", true),
                 Arguments.of("Character", "/", true),
