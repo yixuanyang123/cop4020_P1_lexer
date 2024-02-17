@@ -402,9 +402,9 @@ final class ParserExpressionTests {
 
     private static Stream<Arguments> testBaseline() {
         return Stream.of(
-                Arguments.of("Integer",
+                Arguments.of("Int",
                         Arrays.asList(new Token(Token.Type.INTEGER, "1", 0)),
-                        new Ast.Expression.Literal(new BigInteger("1"))
+                        new Ast.Expression.Literal(Integer.parseInt("1"))
                 ),
                 Arguments.of("Variable",
                         Arrays.asList(new Token(Token.Type.IDENTIFIER, "expr", 0)),
