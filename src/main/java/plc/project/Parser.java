@@ -349,32 +349,62 @@ public final class Parser {
      * not strictly necessary.
      */
     public Ast.Expression parsePrimaryExpression() throws ParseException {
-        if (peek(Token.Type.INTEGER)) {
+        if (peek("NIL")) {
+            tokens.advance(); // Consume 'NIL'
+            return new Ast.Expression.Literal(null);
+        } else if (peek("TRUE") || peek("FALSE")) {
+            Token token = tokens.get(0);
+            tokens.advance(); // Consume 'TRUE' or 'FALSE'
+            return new Ast.Expression.Literal(Boolean.parseBoolean(token.getLiteral()));
+        } else if (peek(Token.Type.INTEGER)) {
             Token token = tokens.get(0);
             tokens.advance();
             return new Ast.Expression.Literal(Integer.parseInt(token.getLiteral()));
-        } else if (peek(Token.Type.IDENTIFIER) && peek(Token.Type.OPERATOR, "(", 1)) {
-            // Parsing a function call
-            String name = tokens.get(0).getLiteral();
-            tokens.advance(); // Consume the function name
-            match("("); // Consume '('
-            List<Ast.Expression> arguments = new java.util.ArrayList<Ast.Expression>();
-            while (!match(")")) {
-                arguments.add(parseExpression());
-                if (!peek(")")) {
-                    match(","); // Consume ',' between arguments
-                }
-            }
-            return new Ast.Expression.Function(name, arguments);
-        } else if (peek(Token.Type.IDENTIFIER)) {
-            // Parsing a variable access
+        } else if (peek(Token.Type.DECIMAL)) {
             Token token = tokens.get(0);
             tokens.advance();
-            return new Ast.Expression.Access(Optional.empty(), token.getLiteral());
+            return new Ast.Expression.Literal(Double.parseDouble(token.getLiteral()));
+        } else if (peek(Token.Type.CHARACTER)) {
+            Token token = tokens.get(0);
+            tokens.advance();
+            return new Ast.Expression.Literal(token.getLiteral().charAt(1)); // Assuming character is single-quoted
+        } else if (peek(Token.Type.STRING)) {
+            Token token = tokens.get(0);
+            tokens.advance();
+            return new Ast.Expression.Literal(token.getLiteral()); // Assuming string is double-quoted
+        } else if (peek("(")) {
+            tokens.advance(); // Consume '('
+            Ast.Expression expression = parseExpression();
+            if (!match(")")) throw new ParseException("Expected ')'", tokens.get(0).getIndex());
+            return expression;
+        } else if (peek(Token.Type.IDENTIFIER)) {
+            Token token = tokens.get(0);
+            tokens.advance(); // Consume identifier
+            if (match("(")) {
+                // Function call
+                List<Ast.Expression> arguments = new java.util.ArrayList<Ast.Expression>();
+                while (!peek(")")) {
+                    arguments.add(parseExpression());
+                    if (!match(")")) {
+                        if (!match(",")) throw new ParseException("Expected ',' or ')'", tokens.get(0).getIndex());
+                    }
+                    else break;
+                }
+                tokens.advance();
+                return new Ast.Expression.Function(token.getLiteral(), arguments);
+            } else if (match("[")) {
+                // Array access
+                Ast.Expression index = parseExpression();
+                if (!match("]")) throw new ParseException("Expected ']'", tokens.get(0).getIndex());
+                return new Ast.Expression.Access(Optional.empty(), token.getLiteral());
+            } else {
+                // Variable access
+                return new Ast.Expression.Access(Optional.empty(), token.getLiteral());
+            }
         }
-        // Include other literal types and group expression parsing
         throw new ParseException("Expected a primary expression", tokens.get(0).getIndex());
-    } //TODO
+    }
+ //TODO
 
     /**
      * As in the lexer, returns {@code true} if the current sequence of tokens
