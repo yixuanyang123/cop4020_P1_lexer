@@ -31,7 +31,7 @@ public final class Lexer {
     public List<Token> lex() {
         List<Token> tokens = new ArrayList<>();
         while (chars.has(0)) { // While there are characters left to lex
-            if (peek("\\s")) { // Skip whitespace
+            if (peek("[\b\\s]")) { // Skip whitespace
                 chars.advance();
                 chars.skip();
             }
@@ -174,6 +174,11 @@ public final class Lexer {
             }
             chars.advance(); // Consume escape character
         }
+        else if (peek("[\b\n\r\t]"))
+        {
+            chars.advance();
+            throw new ParseException("Wrong",chars.index-1);
+        }
         else {
             if (!peek("[^']")) { // Check for non-quote character
                 throw new ParseException("Empty character literal", chars.index);
@@ -293,6 +298,7 @@ public final class Lexer {
      */
     public boolean peek(String... patterns) {
         for(int i = 0; i < patterns.length; i++) {
+//            char a = chars.get(i);
             if(!chars.has(i) || !String.valueOf(chars.get(i)).matches(patterns[i])) {
                 return false;
             }
