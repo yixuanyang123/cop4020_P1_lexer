@@ -175,32 +175,32 @@ public class LexerTests {
 
     private static Stream<Arguments> testMisc() {
         return Stream.of(
-//                Arguments.of("Multiple Spaces", "one   two", Arrays.asList(
-//                        new Token(Token.Type.IDENTIFIER, "one", 0),
-//                        new Token(Token.Type.IDENTIFIER, "two", 6)
-//                )),
-//                Arguments.of("Trailing Newline", "token\n", Arrays.asList(
-//                        new Token(Token.Type.IDENTIFIER, "token", 0)
-//                )),
+                Arguments.of("Multiple Spaces", "one   two", Arrays.asList(
+                        new Token(Token.Type.IDENTIFIER, "one", 0),
+                        new Token(Token.Type.IDENTIFIER, "two", 6)
+                )),
+                Arguments.of("Trailing Newline", "token\n", Arrays.asList(
+                        new Token(Token.Type.IDENTIFIER, "token", 0)
+                )),
                 Arguments.of("Not Whitespace", "one\btwo", Arrays.asList(
                         new Token(Token.Type.IDENTIFIER, "one", 0),
                         new Token(Token.Type.IDENTIFIER, "two", 4)
+                )),
+                Arguments.of("Multiple Decimals", "1.2.3", Arrays.asList(
+                        new Token(Token.Type.DECIMAL, "1.2", 0),
+                        new Token(Token.Type.OPERATOR, ".", 3),
+                        new Token(Token.Type.INTEGER, "3", 4)
+                )),
+                Arguments.of("Equals Combinations", "!====", Arrays.asList(
+                        new Token(Token.Type.OPERATOR, "!=", 0),
+                        new Token(Token.Type.OPERATOR, "==", 2),
+                        new Token(Token.Type.OPERATOR, "=", 4)
+                )),
+                Arguments.of("Weird Quotes", "'\"'string\"'\"", Arrays.asList(
+                        new Token(Token.Type.CHARACTER, "'\"'", 0),
+                        new Token(Token.Type.IDENTIFIER, "string", 3),
+                        new Token(Token.Type.STRING, "\"'\"", 9)
                 ))
-//                Arguments.of("Multiple Decimals", "1.2.3", Arrays.asList(
-//                        new Token(Token.Type.DECIMAL, "1.2", 0),
-//                        new Token(Token.Type.OPERATOR, ".", 3),
-//                        new Token(Token.Type.INTEGER, "3", 4)
-//                )),
-//                Arguments.of("Equals Combinations", "!====", Arrays.asList(
-//                        new Token(Token.Type.OPERATOR, "!=", 0),
-//                        new Token(Token.Type.OPERATOR, "==", 2),
-//                        new Token(Token.Type.OPERATOR, "=", 4)
-//                )),
-//                Arguments.of("Weird Quotes", "'\"'string\"'\"", Arrays.asList(
-//                        new Token(Token.Type.CHARACTER, "'\"'", 0),
-//                        new Token(Token.Type.IDENTIFIER, "string", 3),
-//                        new Token(Token.Type.STRING, "\"'\"", 9)
-//                ))
         );
     }
 
