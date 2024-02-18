@@ -1,5 +1,7 @@
 package plc.project;
 
+import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.util.List;
 import java.util.Optional;
 
@@ -199,8 +201,6 @@ public final class Parser {
                 if (!match(";"))
                     throw new ParseException("Expected ';'", tokens.get(0).getIndex());
 
-                if(!tokens.has(0))
-                    throw new ParseException("Missing Operand", tokens.index);
                 return new Ast.Statement.Assignment(expression, value);
             }
             else {
@@ -435,12 +435,12 @@ public final class Parser {
         else if (peek(Token.Type.INTEGER)) {
             Token token = tokens.get(0);
             tokens.advance();
-            return new Ast.Expression.Literal(Integer.parseInt(token.getLiteral()));
+            return new Ast.Expression.Literal(new BigInteger(token.getLiteral()));
         }
         else if (peek(Token.Type.DECIMAL)) {
             Token token = tokens.get(0);
             tokens.advance();
-            return new Ast.Expression.Literal(Double.parseDouble(token.getLiteral()));
+            return new Ast.Expression.Literal(new BigDecimal(token.getLiteral()));
         }
         else if (peek(Token.Type.CHARACTER)) {
             Token token = tokens.get(0);
@@ -472,28 +472,39 @@ public final class Parser {
                     if(!tokens.has(0))
                         throw new ParseException("Missing ')'", tokens.index);
                     arguments.add(parseExpression());
-                    if (!match(")")) {
+                    if (!peek(")")) {
+//                        tokens.advance();
                         if (!match(","))
                             throw new ParseException("Expected ',' or ')'", tokens.get(0).getIndex());
+                        else
+                        {
+                            if(peek(")"))
+                                throw new ParseException("Wrong", tokens.get(0).getIndex());
+                        }
                     }
+                    else
+                        break;
                 }
                 tokens.advance();
-                return new Ast.Expression.Access(Optional.of(new Ast.Expression.PlcList(arguments)), token.getLiteral());
+                return new Ast.Expression.Function(token.getLiteral(),arguments);
             }
             else if (match("[")) {
-                List<Ast.Expression> arguments = new java.util.ArrayList<Ast.Expression>();
+                Ast.Expression arguments ;
                 while (!peek("]")) {
                     if(!tokens.has(0))
                         throw new ParseException("Missing ']'", tokens.index);
-                    arguments.add(parseExpression());
+                    arguments = parseExpression();
                     if (!match("]")) {
                         if (!match(","))
                             throw new ParseException("Expected ',' or ']'", tokens.get(0).getIndex());
                     }
-                    else break;
+                    else
+                    {
+                        tokens.advance();
+                        return new Ast.Expression.Access(Optional.of(arguments), token.getLiteral());
+                    }
                 }
-                tokens.advance();
-                return new Ast.Expression.Access(Optional.of(new Ast.Expression.PlcList(arguments)), token.getLiteral());
+
             }
             else {
                 // Variable access
