@@ -424,12 +424,12 @@ public final class Parser {
      */
     public Ast.Expression parsePrimaryExpression() throws ParseException {
         if (peek("NIL")) {
-            tokens.advance(); // Consume 'NIL'
+            tokens.advance();
             return new Ast.Expression.Literal(null);
         }
         else if (peek("TRUE") || peek("FALSE")) {
             Token token = tokens.get(0);
-            tokens.advance(); // Consume 'TRUE' or 'FALSE'
+            tokens.advance();
             return new Ast.Expression.Literal(Boolean.parseBoolean(token.getLiteral()));
         }
         else if (peek(Token.Type.INTEGER)) {
