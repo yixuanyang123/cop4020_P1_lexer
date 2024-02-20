@@ -99,6 +99,25 @@ final class ParserExpressionTests {
                                 new Ast.Expression.Access(Optional.empty(), "name"),
                                 new Ast.Expression.Access(Optional.empty(), "value")
                         )
+                ),
+                Arguments.of("Assignment",
+                        Arrays.asList(
+                                //list[offset] = expr;
+                                new Token(Token.Type.IDENTIFIER, "list", 0),
+                                new Token(Token.Type.OPERATOR, "[", 4),
+                                new Token(Token.Type.IDENTIFIER, "offset", 5),
+                                new Token(Token.Type.OPERATOR, "]", 11),
+                                new Token(Token.Type.OPERATOR, "=", 12),
+                                new Token(Token.Type.IDENTIFIER, "expr", 13),
+                                new Token(Token.Type.OPERATOR, ";", 14)
+                        ),
+                        new Ast.Statement.Assignment(
+                                new Ast.Expression.Access(
+                                        Optional.of(new Ast.Expression.Access(Optional.empty(), "offset")),
+                                        "list"
+                                ),
+                                new Ast.Expression.Access(Optional.empty(), "expr")
+                        )
                 )
         );
     }
@@ -133,11 +152,19 @@ final class ParserExpressionTests {
                 ),
                 Arguments.of("String Literal",
                         Arrays.asList(new Token(Token.Type.STRING, "\"string\"", 0)),
-                        new Ast.Expression.Literal("\"string\"")
+                        new Ast.Expression.Literal("string")
                 ),
                 Arguments.of("Escape Character",
                         Arrays.asList(new Token(Token.Type.STRING, "\"Hello,\\nWorld!\"", 0)),
-                        new Ast.Expression.Literal("\"Hello,\\nWorld!\"")
+                        new Ast.Expression.Literal("Hello,\nWorld!")
+                ),
+                Arguments.of("Character Literal",
+                        Arrays.asList(new Token(Token.Type.CHARACTER, "'\\t'", 0)),
+                        new Ast.Expression.Literal('\t')
+                ),
+                Arguments.of("Character Literal",
+                        Arrays.asList(new Token(Token.Type.STRING, "\"\\t\"", 0)),
+                        new Ast.Expression.Literal("\t")
                 )
         );
     }
@@ -296,19 +323,6 @@ final class ParserExpressionTests {
                                 new Ast.Expression.Access(Optional.empty(), "expr3")
                         ))
                 )
-//                Arguments.of("Trailing Comma",
-//                        Arrays.asList(
-//                                //name(expr,)
-//                                new Token(Token.Type.IDENTIFIER, "name", 0),
-//                                new Token(Token.Type.OPERATOR, "(", 4),
-//                                new Token(Token.Type.IDENTIFIER, "expr", 5),
-//                                new Token(Token.Type.OPERATOR, ",", 9),
-//                                new Token(Token.Type.OPERATOR, ")", 10)
-//                        ),
-//                        new Ast.Expression.Function("name", Arrays.asList(
-//                                new Ast.Expression.Access(Optional.empty(), "expr")
-//                        ))
-//                )
         );
     }
 
@@ -430,10 +444,8 @@ final class ParserExpressionTests {
 
     @ParameterizedTest
     @MethodSource
-    void testException(String test, List<Token> tokens, Class<? extends Throwable> expectedException, String expectedMessage) {
-        Parser parser = new Parser(tokens);
-        Throwable exception = Assertions.assertThrows(expectedException, () -> parser.parseStatement());
-        Assertions.assertEquals(expectedMessage, exception.getMessage());
+    void testException(String test, List<Token> tokens, ParseException exception) {
+        testParseException(tokens, exception, Parser::parseStatement);
     }
 
 
@@ -441,14 +453,14 @@ final class ParserExpressionTests {
         return Stream.of(
                 Arguments.of("Invalid Expression",
                         Arrays.asList(new Token(Token.Type.OPERATOR, "?", 0)),
-                        ParseException.class, "Expected a primary expression"
+                        new ParseException("Expected a primary expression", 0)
                 ),
                 Arguments.of("Missing Closing Parenthesis",
                         Arrays.asList(
                                 new Token(Token.Type.OPERATOR, "(", 0),
                                 new Token(Token.Type.IDENTIFIER, "expr", 1)
                         ),
-                        ParseException.class, "Missing ',' or ')'"
+                        new ParseException("Missing ',' or ')'", 5)
                 ),
                 Arguments.of("Invalid Closing Parenthesis",
                         Arrays.asList(
@@ -456,39 +468,43 @@ final class ParserExpressionTests {
                                 new Token(Token.Type.IDENTIFIER, "expr", 1),
                                 new Token(Token.Type.OPERATOR, "]", 5)
                         ),
-                        ParseException.class, "Expected ',' or ')'"
+                        new ParseException("Expected ',' or ')'", 5)
                 ),
                 Arguments.of("Missing Semicolon",
                         Arrays.asList(
                                 // f
                                 new Token(Token.Type.IDENTIFIER, "f", 0)
                         ),
-                        ParseException.class, "Missing"
+                        new ParseException("Missing", 1)
                 ),
                 Arguments.of("Missing Value",
                         Arrays.asList(
                                 //name = ;
                                 new Token(Token.Type.IDENTIFIER, "name", 0),
-                                new Token(Token.Type.OPERATOR, "=", 5),
-                                new Token(Token.Type.OPERATOR, ";", 7)
+                                new Token(Token.Type.OPERATOR, "=", 4),
+                                new Token(Token.Type.OPERATOR, ";", 5)
                         ),
-                        ParseException.class, "Expected a primary expression"
-                ),
-                Arguments.of("Missing Closing Parenthesis",
-                        Arrays.asList(
-                                //(expr
-                                new Token(Token.Type.OPERATOR, "(", 0),
-                                new Token(Token.Type.IDENTIFIER, "expr", 1)
-                        ),
-                        ParseException.class, "Missing ',' or ')'"
+                        new ParseException("Missing", 5)
                 ),
                 Arguments.of("Missing Operand",
                         Arrays.asList(
                                 //expr -
                                 new Token(Token.Type.IDENTIFIER, "expr", 0),
-                                new Token(Token.Type.OPERATOR, "-", 5)
+                                new Token(Token.Type.OPERATOR, "-", 4)
                         ),
-                        ParseException.class, "Missing Operand"
+                        new ParseException("Missing", 5)
+                ),
+                Arguments.of("Trailing Comma",
+                        Arrays.asList(
+                                //name(expr,)
+                                new Token(Token.Type.IDENTIFIER, "name", 0),
+                                new Token(Token.Type.OPERATOR, "(", 4),
+                                new Token(Token.Type.IDENTIFIER, "expr", 5),
+                                new Token(Token.Type.OPERATOR, ",", 9),
+                                new Token(Token.Type.OPERATOR, ")", 10)
+                        ),
+                        new ParseException("Trailing Comma", 10)
+
                 )
         );
     }
@@ -497,8 +513,17 @@ final class ParserExpressionTests {
      * Standard test function. If expected is null, a ParseException is expected
      * to be thrown (not used in the provided tests).
      */
+
+    private static <T extends Ast> void testParseException(List<Token> tokens, ParseException exception, Function<Parser, T> function) {
+        Parser parser = new Parser(tokens);
+        ParseException pe = Assertions.assertThrows(ParseException.class, () -> function.apply(parser));
+        System.out.println(pe.getMessage());
+        Assertions.assertEquals(exception.getIndex(), pe.getIndex());
+    }
+
     private static <T extends Ast> void test(List<Token> tokens, T expected, Function<Parser, T> function) {
         Parser parser = new Parser(tokens);
+//        T expression1 = function.apply(parser);
         if (expected != null) {
             Assertions.assertEquals(expected, function.apply(parser));
         } else {
@@ -506,3 +531,4 @@ final class ParserExpressionTests {
         }
     }
 }
+
