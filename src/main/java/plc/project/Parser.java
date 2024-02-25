@@ -32,13 +32,29 @@ public final class Parser {
     public Ast.Source parseSource() throws ParseException {
         List<Ast.Global> globals = new java.util.ArrayList<>();
         List<Ast.Function> functions = new java.util.ArrayList<>();
-        while (peek("LIST") || peek("VAL") || peek("VAR")) {
-            globals.add(parseGlobal());
-        }
-        while (peek("FUN")) {
-            functions.add(parseFunction());
-        }
-        return new Ast.Source(globals, functions);
+        while(tokens.has(0)){
+            while (peek("LIST") || peek("VAL") || peek("VAR")) {
+                globals.add(parseGlobal());
+                if(tokens.has(0))
+                {
+                    if (peek("\n"))
+                        tokens.advance();
+                    else throw new ParseException("Wronggggggg,", tokens.get(0).getIndex());
+                }
+                else return new Ast.Source(globals, functions);
+
+            }
+            while (peek("FUN")) {
+                functions.add(parseFunction());
+                if(tokens.has(0))
+                {
+                    if (peek("\n"))
+                        tokens.advance();
+                    else throw new ParseException("Wronggggggg,", tokens.get(0).getIndex());
+                }
+                else return new Ast.Source(globals, functions);
+            }}
+            return new Ast.Source(globals, functions);
     } //TODO
 
     /**
@@ -46,9 +62,38 @@ public final class Parser {
      * next tokens start a global, aka {@code LIST|VAL|VAR}.
      */
     public Ast.Global parseGlobal() throws ParseException {
-        if (peek("LIST")) return parseList();
-        else if (peek("VAR")) return parseMutable();
-        else if (peek("VAL")) return parseImmutable();
+        if (peek("LIST")) {
+            Ast.Global list = parseList();
+//            tokens.advance();
+            if (!tokens.has(0))
+                throw new ParseException("Wrong!!!!!!!,", tokens.get(-1).getIndex());
+            if (!match(";"))  {
+                throw new ParseException("No ;", tokens.get(0).getIndex());
+            }
+            return list;
+        }
+        else if (peek("VAR")) {
+            Ast.Global list = parseMutable();
+//            tokens.advance();
+            if (!tokens.has(0))
+                throw new ParseException("Wrong!!!!!!!,", tokens.get(-1).getIndex());
+            if (!match(";"))
+            {
+                throw new ParseException("No ;", tokens.get(0).getIndex());
+            }
+            return list;
+        }
+        else if (peek("VAL")){
+            Ast.Global list = parseImmutable();
+//            tokens.advance();
+            if (!tokens.has(0))
+                throw new ParseException("Wrong!!!!!!!,", tokens.get(-1).getIndex());
+            if (!match(";"))
+            {
+                throw new ParseException("No ;", tokens.get(0).getIndex());
+            }
+            return list;
+        }
         throw new ParseException("Expected global declaration", tokens.get(0).getIndex());
     } //TODO
 
@@ -63,6 +108,7 @@ public final class Parser {
         }
         if (!match("LIST"))
             throw new ParseException("Expected 'LIST'", tokens.get(0).getIndex());
+
         Token nameToken = tokens.get(0);
 
         if(!tokens.has(0)) {
@@ -72,17 +118,9 @@ public final class Parser {
         if (!match(Token.Type.IDENTIFIER))
             throw new ParseException("Expected identifier", nameToken.getIndex());
 
-        if(!tokens.has(0)) {
-            tokens.index--;
-            throw new ParseException("Missing", tokens.get(0).getIndex()+tokens.get(0).getLiteral().length());
-        }
         if (!match("="))
             throw new ParseException("Expected '='", tokens.get(0).getIndex());
 
-        if(!tokens.has(0)) {
-            tokens.index--;
-            throw new ParseException("Missing", tokens.get(0).getIndex()+tokens.get(0).getLiteral().length());
-        }
         if (!match("["))
             throw new ParseException("Expected '['", tokens.get(0).getIndex());
 
@@ -111,7 +149,7 @@ public final class Parser {
             throw new ParseException("Expected 'VAR'", tokens.get(0).getIndex());
         Token nameToken = tokens.get(0);
         if (!match(Token.Type.IDENTIFIER))
-            throw new ParseException("Expected identifier", nameToken.getIndex());
+            throw new ParseException("Expected identifier", tokens.get(0).getIndex());
 
         Optional<Ast.Expression> value = Optional.empty();
         if (match("=")) {
@@ -130,7 +168,7 @@ public final class Parser {
             throw new ParseException("Expected 'VAL'", tokens.get(0).getIndex());
         Token nameToken = tokens.get(0);
         if (!match(Token.Type.IDENTIFIER))
-            throw new ParseException("Expected identifier", nameToken.getIndex());
+            throw new ParseException("Expected identifier", tokens.get(0).getIndex());
         if (!match("="))
             throw new ParseException("Expected '='", tokens.get(0).getIndex());
 
@@ -148,14 +186,15 @@ public final class Parser {
             throw new ParseException("Expected 'FUN'", tokens.get(0).getIndex());
         Token nameToken = tokens.get(0);
         if (!match(Token.Type.IDENTIFIER))
-            throw new ParseException("Expected identifier", nameToken.getIndex());
+            throw new ParseException("Expected identifier", tokens.get(0).getIndex());
         if (!match("("))
             throw new ParseException("Expected '('", tokens.get(0).getIndex());
 
         List<String> parameters = new java.util.ArrayList<>();
         while (!peek(")")) {
             Token paramToken = tokens.get(0);
-            if (!match(Token.Type.IDENTIFIER)) throw new ParseException("Expected identifier", paramToken.getIndex());
+            if (!match(Token.Type.IDENTIFIER))
+                throw new ParseException("Expected identifier", tokens.get(0).getIndex());
             parameters.add(paramToken.getLiteral());
             if (!match(",")) {
                 if (!peek(")")) throw new ParseException("Expected ',' or ')'", tokens.get(0).getIndex());
@@ -255,7 +294,6 @@ public final class Parser {
                 throw new ParseException("Missing Operand", tokens.get(0).getIndex()+tokens.get(0).getLiteral().length());
             }
         }
-
         if (!match(";"))
             throw new ParseException("Expected ';'", tokens.get(0).getIndex());
 
@@ -305,13 +343,13 @@ public final class Parser {
         while (peek("CASE")) {
             cases.add(parseCaseStatement());
         }
+        if (!match("END"))
+            throw new ParseException("Expected 'END'", tokens.get(0).getIndex());
         if (match("DEFAULT")) {
             List<Ast.Statement> defaultStatements = parseBlock();
             // Assuming Ast.Statement.Case can take Optional.empty() for the default case
             cases.add(new Ast.Statement.Case(Optional.empty(), defaultStatements));
         }
-        if (!match("END"))
-            throw new ParseException("Expected 'END'", tokens.get(0).getIndex());
         return new Ast.Statement.Switch(condition, cases);
     } //TODO
 
