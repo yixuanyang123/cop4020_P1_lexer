@@ -241,6 +241,36 @@ final class InterpreterTests {
     }
 
     @Test
+    void testSwitchStatementWithUndefinedLogFunction() {
+        // GIVEN: A scope with a variable 'letter' set to 'y' and no 'log' function defined
+        Scope scope = new Scope(null);
+        scope.defineVariable("letter", true, Environment.create('y'));
+
+        // AND: A switch statement with cases that attempt to use the undefined 'log' function
+        List<Ast.Statement> caseStatements = Arrays.asList(
+                new Ast.Statement.Expression(new Ast.Expression.Function("log", Arrays.asList(new Ast.Expression.Literal("yes")))),
+                new Ast.Statement.Assignment(new Ast.Expression.Access(Optional.empty(), "letter"), new Ast.Expression.Literal('n'))
+        );
+        List<Ast.Statement> defaultStatements = Arrays.asList(
+                new Ast.Statement.Expression(new Ast.Expression.Function("log", Arrays.asList(new Ast.Expression.Literal("no"))))
+        );
+
+        List<Ast.Statement.Case> cases = Arrays.asList(
+                new Ast.Statement.Case(Optional.of(new Ast.Expression.Literal('y')), caseStatements),
+                new Ast.Statement.Case(Optional.empty(), defaultStatements)
+        );
+
+        Ast.Statement.Switch astSwitch = new Ast.Statement.Switch(new Ast.Expression.Access(Optional.empty(), "letter"), cases);
+
+        // WHEN & THEN: The test should expect a RuntimeException because 'log' function is not defined
+        Assertions.assertThrows(RuntimeException.class, () -> {
+            // Execute the switch statement which should trigger the exception
+            Interpreter interpreter = new Interpreter(scope);
+            interpreter.visit(astSwitch);
+        });
+    }
+
+    @Test
     void testWhileStatement() {
         // WHILE num < 10 DO num = num + 1; END
         Scope scope = new Scope(null);
