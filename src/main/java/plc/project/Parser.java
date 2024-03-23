@@ -2,6 +2,7 @@ package plc.project;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -29,32 +30,18 @@ public final class Parser {
     /**
      * Parses the {@code source} rule.
      */
-    public Ast.Source parseSource() throws ParseException {
-        List<Ast.Global> globals = new java.util.ArrayList<>();
-        List<Ast.Function> functions = new java.util.ArrayList<>();
-        while(tokens.has(0)){
-            while (peek("LIST") || peek("VAL") || peek("VAR")) {
-                globals.add(parseGlobal());
-                if(tokens.has(0))
-                {
-                    if (peek("\n"))
-                        tokens.advance();
-                    else throw new ParseException("Wronggggggg,", tokens.get(0).getIndex());
-                }
-                else return new Ast.Source(globals, functions);
 
-            }
-            while (peek("FUN")) {
-                functions.add(parseFunction());
-                if(tokens.has(0))
-                {
-                    if (peek("\n"))
-                        tokens.advance();
-                    else throw new ParseException("Wronggggggg,", tokens.get(0).getIndex());
-                }
-                else return new Ast.Source(globals, functions);
-            }}
+    public Ast.Source parseSource() throws ParseException {
+        List<Ast.Global> globals = new ArrayList<>();
+        List<Ast.Function> functions = new ArrayList<>();
+        while(peek("LIST") || peek("VAR") || peek("VAL"))
+            globals.add(parseGlobal());
+        while(peek("FUN"))
+            functions.add(parseFunction());
+        if (!tokens.has(0))
             return new Ast.Source(globals, functions);
+        else
+            throw new ParseException("Wrong", tokens.get(0).getIndex());
     } //TODO
 
     /**
@@ -64,34 +51,32 @@ public final class Parser {
     public Ast.Global parseGlobal() throws ParseException {
         if (peek("LIST")) {
             Ast.Global list = parseList();
-//            tokens.advance();
-            if (!tokens.has(0))
-                throw new ParseException("Wrong!!!!!!!,", tokens.get(-1).getIndex());
-            if (!match(";"))  {
-                throw new ParseException("No ;", tokens.get(0).getIndex());
+            if(!tokens.has(0)) {
+                tokens.index--;
+                throw new ParseException("Missing ;", tokens.get(0).getIndex()+tokens.get(0).getLiteral().length());
             }
+            if (!match(";"))
+                throw new ParseException("Missing ;", tokens.get(0).getIndex());
             return list;
         }
         else if (peek("VAR")) {
             Ast.Global list = parseMutable();
-//            tokens.advance();
-            if (!tokens.has(0))
-                throw new ParseException("Wrong!!!!!!!,", tokens.get(-1).getIndex());
-            if (!match(";"))
-            {
-                throw new ParseException("No ;", tokens.get(0).getIndex());
+            if(!tokens.has(0)) {
+                tokens.index--;
+                throw new ParseException("Missing ;", tokens.get(0).getIndex()+tokens.get(0).getLiteral().length());
             }
+            if (!match(";"))
+                throw new ParseException("Missing ;", tokens.get(0).getIndex());
             return list;
         }
         else if (peek("VAL")){
             Ast.Global list = parseImmutable();
-//            tokens.advance();
-            if (!tokens.has(0))
-                throw new ParseException("Wrong!!!!!!!,", tokens.get(-1).getIndex());
-            if (!match(";"))
-            {
-                throw new ParseException("No ;", tokens.get(0).getIndex());
+            if(!tokens.has(0)) {
+                tokens.index--;
+                throw new ParseException("Missing ;", tokens.get(0).getIndex()+tokens.get(0).getLiteral().length());
             }
+            if (!match(";"))
+                throw new ParseException("Missing ;", tokens.get(0).getIndex());
             return list;
         }
         throw new ParseException("Expected global declaration", tokens.get(0).getIndex());
@@ -104,32 +89,39 @@ public final class Parser {
     public Ast.Global parseList() throws ParseException {
         if(!tokens.has(0)) {
             tokens.index--;
-            throw new ParseException("Missing", tokens.get(0).getIndex()+tokens.get(0).getLiteral().length());
+            throw new ParseException("Expected 'LIST'", tokens.get(0).getIndex()+tokens.get(0).getLiteral().length());
         }
         if (!match("LIST"))
             throw new ParseException("Expected 'LIST'", tokens.get(0).getIndex());
 
-        Token nameToken = tokens.get(0);
 
+        Token nameToken = tokens.get(0);
         if(!tokens.has(0)) {
             tokens.index--;
-            throw new ParseException("Missing", tokens.get(0).getIndex()+tokens.get(0).getLiteral().length());
+            throw new ParseException("Expected identifier", tokens.get(0).getIndex()+tokens.get(0).getLiteral().length());
         }
         if (!match(Token.Type.IDENTIFIER))
             throw new ParseException("Expected identifier", nameToken.getIndex());
-
+        if(!tokens.has(0)) {
+            tokens.index--;
+            throw new ParseException("Expected '='", tokens.get(0).getIndex()+tokens.get(0).getLiteral().length());
+        }
         if (!match("="))
             throw new ParseException("Expected '='", tokens.get(0).getIndex());
-
+        if(!tokens.has(0)) {
+            tokens.index--;
+            throw new ParseException("Expected '['", tokens.get(0).getIndex()+tokens.get(0).getLiteral().length());
+        }
         if (!match("["))
             throw new ParseException("Expected '['", tokens.get(0).getIndex());
 
-        List<Ast.Expression> expressions = new java.util.ArrayList<>();
+
+        List<Ast.Expression> expressions = new ArrayList<>();
         while (!peek("]")) {
             expressions.add(parseExpression());
             if(!tokens.has(0)) {
                 tokens.index--;
-                throw new ParseException("Missing", tokens.get(0).getIndex()+tokens.get(0).getLiteral().length());
+                throw new ParseException("Expected ',' or ']'", tokens.get(0).getIndex()+tokens.get(0).getLiteral().length());
             }
             if (!match(",")) {
                 if (!peek("]")) throw new ParseException("Expected ',' or ']'", tokens.get(0).getIndex());
@@ -145,9 +137,18 @@ public final class Parser {
      * next token declares a mutable global variable, aka {@code VAR}.
      */
     public Ast.Global parseMutable() throws ParseException {
+        if(!tokens.has(0)) {
+            tokens.index--;
+            throw new ParseException("Expected 'VAR'", tokens.get(0).getIndex()+tokens.get(0).getLiteral().length());
+        }
         if (!match("VAR"))
             throw new ParseException("Expected 'VAR'", tokens.get(0).getIndex());
+
         Token nameToken = tokens.get(0);
+        if(!tokens.has(0)) {
+            tokens.index--;
+            throw new ParseException("Expected identifier", tokens.get(0).getIndex()+tokens.get(0).getLiteral().length());
+        }
         if (!match(Token.Type.IDENTIFIER))
             throw new ParseException("Expected identifier", tokens.get(0).getIndex());
 
@@ -164,11 +165,24 @@ public final class Parser {
      * next token declares an immutable global variable, aka {@code VAL}.
      */
     public Ast.Global parseImmutable() throws ParseException {
+        if(!tokens.has(0)) {
+            tokens.index--;
+            throw new ParseException("Expected 'VAL'", tokens.get(0).getIndex()+tokens.get(0).getLiteral().length());
+        }
         if (!match("VAL"))
             throw new ParseException("Expected 'VAL'", tokens.get(0).getIndex());
+
         Token nameToken = tokens.get(0);
+        if(!tokens.has(0)) {
+            tokens.index--;
+            throw new ParseException("Expected identifier", tokens.get(0).getIndex()+tokens.get(0).getLiteral().length());
+        }
         if (!match(Token.Type.IDENTIFIER))
             throw new ParseException("Expected identifier", tokens.get(0).getIndex());
+        if(!tokens.has(0)) {
+            tokens.index--;
+            throw new ParseException("Expected '='", tokens.get(0).getIndex()+tokens.get(0).getLiteral().length());
+        }
         if (!match("="))
             throw new ParseException("Expected '='", tokens.get(0).getIndex());
 
@@ -182,29 +196,62 @@ public final class Parser {
      * next tokens start a method, aka {@code FUN}.
      */
     public Ast.Function parseFunction() throws ParseException {
+        if(!tokens.has(0)) {
+            tokens.index--;
+            throw new ParseException("Expected 'FUN'", tokens.get(0).getIndex()+tokens.get(0).getLiteral().length());
+        }
         if (!match("FUN"))
             throw new ParseException("Expected 'FUN'", tokens.get(0).getIndex());
+
         Token nameToken = tokens.get(0);
+        if(!tokens.has(0)) {
+            tokens.index--;
+            throw new ParseException("Expected identifier", tokens.get(0).getIndex()+tokens.get(0).getLiteral().length());
+        }
         if (!match(Token.Type.IDENTIFIER))
             throw new ParseException("Expected identifier", tokens.get(0).getIndex());
+        if(!tokens.has(0)) {
+            tokens.index--;
+            throw new ParseException("Expected '('", tokens.get(0).getIndex()+tokens.get(0).getLiteral().length());
+        }
         if (!match("("))
             throw new ParseException("Expected '('", tokens.get(0).getIndex());
 
         List<String> parameters = new java.util.ArrayList<>();
         while (!peek(")")) {
             Token paramToken = tokens.get(0);
+            if(!tokens.has(0)) {
+                tokens.index--;
+                throw new ParseException("Expected identifier", tokens.get(0).getIndex()+tokens.get(0).getLiteral().length());
+            }
             if (!match(Token.Type.IDENTIFIER))
                 throw new ParseException("Expected identifier", tokens.get(0).getIndex());
             parameters.add(paramToken.getLiteral());
+            if(!tokens.has(0)) {
+                tokens.index--;
+                throw new ParseException("Expected ',' or ')'", tokens.get(0).getIndex()+tokens.get(0).getLiteral().length());
+            }
             if (!match(",")) {
                 if (!peek(")")) throw new ParseException("Expected ',' or ')'", tokens.get(0).getIndex());
             }
         }
+        if(!tokens.has(0)) {
+            tokens.index--;
+            throw new ParseException("Expected ')'", tokens.get(0).getIndex()+tokens.get(0).getLiteral().length());
+        }
         if (!match(")")) throw new ParseException("Expected ')'", tokens.get(0).getIndex());
+        if(!tokens.has(0)) {
+            tokens.index--;
+            throw new ParseException("Expected 'DO'", tokens.get(0).getIndex()+tokens.get(0).getLiteral().length());
+        }
         if (!match("DO")) throw new ParseException("Expected 'DO'", tokens.get(0).getIndex());
 
         List<Ast.Statement> statements = parseBlock();
 
+        if(!tokens.has(0)) {
+            tokens.index--;
+            throw new ParseException("Expected 'END'", tokens.get(0).getIndex()+tokens.get(0).getLiteral().length());
+        }
         if (!match("END")) throw new ParseException("Expected 'END'", tokens.get(0).getIndex());
 
         return new Ast.Function(nameToken.getLiteral(), parameters, statements);
@@ -218,6 +265,10 @@ public final class Parser {
         List<Ast.Statement> statements = new java.util.ArrayList<>();
         while (!peek("END") && !peek("CASE") && !peek("DEFAULT") && !peek("ELSE")) {
             statements.add(parseStatement());
+            if(!tokens.has(0)) {
+                tokens.index--;
+                throw new ParseException("Expected 'END'", tokens.get(0).getIndex()+tokens.get(0).getLiteral().length());
+            }
         }
         return statements;
     } //TODO
@@ -249,7 +300,7 @@ public final class Parser {
                 Ast.Expression value = parseExpression();
                 if(!tokens.has(0)) {
                     tokens.index--;
-                    throw new ParseException("Missing", tokens.get(0).getIndex()+tokens.get(0).getLiteral().length());
+                    throw new ParseException("Expected ';'", tokens.get(0).getIndex()+tokens.get(0).getLiteral().length());
                 }
                 if (!match(";"))
                     throw new ParseException("Expected ';'", tokens.get(0).getIndex());
@@ -259,7 +310,7 @@ public final class Parser {
             else {
                 if(!tokens.has(0)) {
                     tokens.index--;
-                    throw new ParseException("Missing ';'", tokens.get(0).getIndex()+tokens.get(0).getLiteral().length());
+                    throw new ParseException("Expected ';'", tokens.get(0).getIndex()+tokens.get(0).getLiteral().length());
                 }
                 if (!match(";"))
                     throw new ParseException("Expected ';'", tokens.get(0).getIndex());
@@ -278,21 +329,25 @@ public final class Parser {
             tokens.index--;
             throw new ParseException("Missing", tokens.get(0).getIndex()+tokens.get(0).getLiteral().length());
         }
-
         if (!match("LET"))
             throw new ParseException("Expected 'LET'", tokens.get(0).getIndex());
+
         Token nameToken = tokens.get(0);
 
         if (!match(Token.Type.IDENTIFIER))
             throw new ParseException("Expected identifier", nameToken.getIndex());
-        Optional<Ast.Expression> initializer = Optional.empty();
 
+        Optional<Ast.Expression> initializer = Optional.empty();
         if (match("=")) {
             initializer = Optional.of(parseExpression());
             if(!tokens.has(0)) {
                 tokens.index--;
                 throw new ParseException("Missing Operand", tokens.get(0).getIndex()+tokens.get(0).getLiteral().length());
             }
+        }
+        if(!tokens.has(0)) {
+            tokens.index--;
+            throw new ParseException("Expected ';'", tokens.get(0).getIndex()+tokens.get(0).getLiteral().length());
         }
         if (!match(";"))
             throw new ParseException("Expected ';'", tokens.get(0).getIndex());
@@ -313,12 +368,18 @@ public final class Parser {
         if (!match("IF"))
             throw new ParseException("Expected 'IF'", tokens.get(0).getIndex());
         Ast.Expression condition = parseExpression();
+
         if (!match("DO"))
             throw new ParseException("Expected 'DO'", tokens.get(0).getIndex());
+
         List<Ast.Statement> thenBlock = parseBlock();
         List<Ast.Statement> elseBlock = new java.util.ArrayList<>();
         if (match("ELSE"))
             elseBlock = parseBlock();
+        if(!tokens.has(0)) {
+            tokens.index--;
+            throw new ParseException("Expected 'END'", tokens.get(0).getIndex()+tokens.get(0).getLiteral().length());
+        }
         if (!match("END"))
             throw new ParseException("Expected 'END'", tokens.get(0).getIndex());
 
@@ -331,31 +392,48 @@ public final class Parser {
      * {@code SWITCH}.
      */
     public Ast.Statement.Switch parseSwitchStatement() throws ParseException {
-        if(!tokens.has(0)) {
-            tokens.index--;
-            throw new ParseException("Missing", tokens.get(0).getIndex()+tokens.get(0).getLiteral().length());
-        }
-        if (!match("SWITCH"))
+        if (!match("SWITCH")) {
             throw new ParseException("Expected 'SWITCH'", tokens.get(0).getIndex());
+        }
+
         Ast.Expression condition = parseExpression();
-        // Explicitly specifying the type within the constructor call for clarity
-        List<Ast.Statement.Case> cases = new java.util.ArrayList<Ast.Statement.Case>();
-        while (peek("CASE")) {
-            cases.add(parseCaseStatement());
+        List<Ast.Statement.Case> cases = new ArrayList<>();
+        boolean foundDefault = false;
+
+        while (tokens.has(0) && !peek("END")) {
+            if (match("CASE")) {
+                Ast.Expression caseExpression = parseExpression();
+                if (!match(":")) {
+                    throw new ParseException("Expected ':' after CASE expression", tokens.get(0).getIndex());
+                }
+                List<Ast.Statement> caseStatements = parseBlock();
+                cases.add(new Ast.Statement.Case(Optional.of(caseExpression), caseStatements));
+            } else if (match("DEFAULT")) {
+                if (foundDefault) {
+                    throw new ParseException("Duplicate 'DEFAULT' case", tokens.get(0).getIndex());
+                }
+                List<Ast.Statement> defaultStatements = parseBlock();
+                cases.add(new Ast.Statement.Case(Optional.empty(), defaultStatements));
+                foundDefault = true;
+            } else {
+                throw new ParseException("Unexpected token in SWITCH statement", tokens.get(0).getIndex());
+            }
         }
-        if (!match("END"))
-            throw new ParseException("Expected 'END'", tokens.get(0).getIndex());
-        if (match("DEFAULT")) {
-            List<Ast.Statement> defaultStatements = parseBlock();
-            // Assuming Ast.Statement.Case can take Optional.empty() for the default case
-            cases.add(new Ast.Statement.Case(Optional.empty(), defaultStatements));
+
+        if (!foundDefault) {
+            throw new ParseException("Expected 'DEFAULT' case", tokens.get(0).getIndex());
         }
+
+        if (!match("END")) {
+            throw new ParseException("Expected 'END' after SWITCH statement", tokens.get(0).getIndex());
+        }
+
         return new Ast.Statement.Switch(condition, cases);
     } //TODO
 
     /**
-     * Parses a case or default statement block from the {@code switch} rule. 
-     * This method should only be called if the next tokens start the case or 
+     * Parses a case or default statement block from the {@code switch} rule.
+     * This method should only be called if the next tokens start the case or
      * default block of a switch statement, aka {@code CASE} or {@code DEFAULT}.
      */
     public Ast.Statement.Case parseCaseStatement() throws ParseException {
@@ -400,15 +478,16 @@ public final class Parser {
      * {@code RETURN}.
      */
     public Ast.Statement.Return parseReturnStatement() throws ParseException {
-        if(!tokens.has(0)) {
-            tokens.index--;
-            throw new ParseException("Missing", tokens.get(0).getIndex()+tokens.get(0).getLiteral().length());
+        if (!tokens.has(0)) {
+            throw new ParseException("Missing expression after 'RETURN'", tokens.index);
         }
-        if (!match("RETURN"))
+        if (!match("RETURN")) {
             throw new ParseException("Expected 'RETURN'", tokens.get(0).getIndex());
+        }
         Ast.Expression value = parseExpression();
-        if (!match(";"))
-            throw new ParseException("Expected ';'", tokens.get(0).getIndex());
+        if (!match(";")) {
+            throw new ParseException("Missing ';'", tokens.index);
+        }
         return new Ast.Statement.Return(value);
     } //TODO
 
