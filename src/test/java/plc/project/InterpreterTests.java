@@ -19,6 +19,43 @@ final class InterpreterTests {
 
     @ParameterizedTest
     @MethodSource
+    void testComplexFunction(String test, Ast.Source ast, Object expected) {
+        test(ast, expected, new Scope(null));
+    }
+
+    private static Stream<Arguments> testComplexFunction() {
+        return Stream.of(
+                Arguments.of("Function with Globals", new Ast.Source(
+                        Arrays.asList(
+                                new Ast.Global("x", true, Optional.of(new Ast.Expression.Literal(BigInteger.ONE))),
+                                new Ast.Global("y", true, Optional.of(new Ast.Expression.Literal(BigInteger.valueOf(2)))),
+                                new Ast.Global("z", true, Optional.of(new Ast.Expression.Literal(BigInteger.valueOf(3))))
+                        ),
+                        Arrays.asList(
+                                new Ast.Function("f", Arrays.asList("z"), Arrays.asList(
+                                        new Ast.Statement.Return(
+                                                new Ast.Expression.Binary("+",
+                                                        new Ast.Expression.Binary("+",
+                                                                new Ast.Expression.Access(Optional.empty(), "x"),
+                                                                new Ast.Expression.Access(Optional.empty(), "y")
+                                                        ),
+                                                        new Ast.Expression.Access(Optional.empty(), "z")
+                                                )
+                                        )
+                                )),
+                                new Ast.Function("main", Arrays.asList(), Arrays.asList(
+                                        new Ast.Statement.Declaration("y", Optional.of(new Ast.Expression.Literal(BigInteger.valueOf(4)))),
+                                        new Ast.Statement.Return(
+                                                new Ast.Expression.Function("f", Arrays.asList(new Ast.Expression.Literal(BigInteger.valueOf(5))))
+                                        )
+                                ))
+                        )
+                ), BigInteger.valueOf(8))
+        );
+    }
+
+    @ParameterizedTest
+    @MethodSource
     void testSource(String test, Ast.Source ast, Object expected) {
         test(ast, expected, new Scope(null));
     }
@@ -175,6 +212,24 @@ final class InterpreterTests {
 
         Assertions.assertEquals(expected, scope.lookupVariable("list").getValue().getValue());
     }
+
+    @Test
+    void testImmutableVariableAssignment() {
+        // Initialize a scope with an immutable variable 'immutable' set to NIL.
+        Scope scope = new Scope(null);
+        scope.defineVariable("immutable", false, Environment.NIL); // false indicates immutability.
+
+        // Attempt to assign a new value to 'immutable'.
+        Ast.Expression.Literal newValue = new Ast.Expression.Literal(BigInteger.TEN);
+        Ast.Expression.Access variableAccess = new Ast.Expression.Access(Optional.empty(), "immutable");
+        Ast.Statement.Assignment assignment = new Ast.Statement.Assignment(variableAccess, newValue);
+
+        // The test should expect a RuntimeException because 'immutable' variable is not mutable.
+        Assertions.assertThrows(RuntimeException.class, () -> {
+            test(assignment, Environment.NIL.getValue(), scope);
+        }, "Expected a RuntimeException to be thrown when assigning a new value to an immutable variable.");
+    }
+
 
     @ParameterizedTest
     @MethodSource

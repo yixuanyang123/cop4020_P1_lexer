@@ -46,22 +46,23 @@ public class Interpreter implements Ast.Visitor<Environment.PlcObject> {
 
     @Override
     public Environment.PlcObject visit(Ast.Function ast) {
+        Scope scopeFunc = new Scope(scope);
         scope.defineFunction(ast.getName(), ast.getParameters().size(), args -> {
             Scope previous = scope;
+            scope = scopeFunc;
+            for (int i = 0; i < args.size(); i++) {
+                scope.defineVariable(ast.getParameters().get(i), true, args.get(i));
+            }
             try {
-                scope = new Scope(previous);
-                for (int i = 0; i < ast.getParameters().size(); i++) {
-                    scope.defineVariable(ast.getParameters().get(i), true, args.get(i));
-                }
                 for (Ast.Statement statement : ast.getStatements()) {
                     visit(statement);
                 }
-                return Environment.NIL;
             } catch (Return returnValue) {
                 return returnValue.value;
             } finally {
                 scope = previous;
             }
+            return Environment.NIL;
         });
         return Environment.NIL;
     }
@@ -86,6 +87,10 @@ public class Interpreter implements Ast.Visitor<Environment.PlcObject> {
         Environment.PlcObject value = visit(ast.getValue());
         if (ast.getReceiver() instanceof Ast.Expression.Access) {
             Ast.Expression.Access access = (Ast.Expression.Access) ast.getReceiver();
+            Environment.Variable variable = scope.lookupVariable(access.getName());
+            if (!variable.getMutable()) {
+                throw new RuntimeException("Attempted to assign a new value to an immutable variable: " + access.getName());
+            }
             if (access.getOffset().isPresent()) {
                 Environment.PlcObject listPlcObject = scope.lookupVariable(access.getName()).getValue();
                 @SuppressWarnings("unchecked")
@@ -255,12 +260,13 @@ public class Interpreter implements Ast.Visitor<Environment.PlcObject> {
                 return Environment.create(!Objects.equals(left.getValue(), visit(ast.getRight()).getValue()));
 
             case "+":
-                if (left.getValue() instanceof String || visit(ast.getRight()).getValue() instanceof String) {
-                    return Environment.create(left.getValue().toString() + visit(ast.getRight()).getValue().toString());
-                } else if (left.getValue() instanceof BigInteger && visit(ast.getRight()).getValue() instanceof BigInteger) {
-                    return Environment.create(((BigInteger) left.getValue()).add((BigInteger) visit(ast.getRight()).getValue()));
-                } else if (left.getValue() instanceof BigDecimal && visit(ast.getRight()).getValue() instanceof BigDecimal) {
-                    return Environment.create(((BigDecimal) left.getValue()).add((BigDecimal) visit(ast.getRight()).getValue()));
+                Environment.PlcObject right = visit(ast.getRight());
+                if (left.getValue() instanceof String || right.getValue() instanceof String) {
+                    return Environment.create(left.getValue().toString() + right.getValue().toString());
+                } else if (left.getValue() instanceof BigInteger && right.getValue() instanceof BigInteger) {
+                    return Environment.create(((BigInteger) left.getValue()).add((BigInteger) right.getValue()));
+                } else if (left.getValue() instanceof BigDecimal && right.getValue() instanceof BigDecimal) {
+                    return Environment.create(((BigDecimal) left.getValue()).add((BigDecimal) right.getValue()));
                 } else {
                     throw new RuntimeException("Invalid types for + operator.");
                 }
