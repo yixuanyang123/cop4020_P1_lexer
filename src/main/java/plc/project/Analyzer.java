@@ -27,6 +27,16 @@ public final class Analyzer implements Ast.Visitor<Void> {
 
     @Override
     public Void visit(Ast.Source ast) {
+        boolean mainExists = false;
+        for (Ast.Function function : ast.getFunctions()) {
+            if ("main".equals(function.getName()) && function.getParameters().isEmpty()) {
+                mainExists = true;
+                break;
+            }
+        }
+        if (!mainExists) {
+            throw new RuntimeException("A main() function with zero parameters does not exist.");
+        }
         for (Ast.Global global : ast.getGlobals()) {
             visit(global);
         }
@@ -71,6 +81,11 @@ public final class Analyzer implements Ast.Visitor<Void> {
         Environment.Type returnType = ast.getReturnTypeName()
                 .map(Environment::getType)
                 .orElse(Environment.Type.NIL);
+        if ("main".equals(ast.getName()) && ast.getParameters().isEmpty()) {
+            if (!returnType.equals(Environment.Type.INTEGER)) {
+                throw new RuntimeException("The main() function must have an Integer return type.");
+            }
+        }
         scope.defineFunction(ast.getName(), ast.getName(), parameterTypes, returnType, args -> Environment.NIL);
         Scope functionScope = new Scope(scope);
         for (int i = 0; i < ast.getParameters().size(); i++) {
@@ -266,29 +281,15 @@ public final class Analyzer implements Ast.Visitor<Void> {
 
     @Override
     public Void visit(Ast.Statement.While ast) {
-        Object conditionValue = ((Ast.Expression.Literal)ast.getCondition()).getLiteral();
-        if (!(conditionValue instanceof Boolean)) {
-            throw new RuntimeException("While condition is not of type Boolean.");
+        visit(ast.getCondition());
+        if (ast.getCondition().getType() != Environment.Type.BOOLEAN) {
+            throw new RuntimeException("While condition must be BOOLEAN.");
         }
         Scope originalScope = scope;
         scope = new Scope(scope);
         try {
             for (Ast.Statement statement : ast.getStatements()) {
-                if (statement instanceof Ast.Statement.Expression) {
-                    visit((Ast.Statement.Expression) statement);
-                } else if (statement instanceof Ast.Statement.Declaration) {
-                    visit((Ast.Statement.Declaration) statement);
-                } else if (statement instanceof Ast.Statement.Assignment) {
-                    visit((Ast.Statement.Assignment) statement);
-                } else if (statement instanceof Ast.Statement.If) {
-                    visit((Ast.Statement.If) statement);
-                } else if (statement instanceof Ast.Statement.Switch) {
-                    visit((Ast.Statement.Switch) statement);
-                } else if (statement instanceof Ast.Statement.Case) {
-                    visit((Ast.Statement.Case) statement);
-                } else if (statement instanceof Ast.Statement.Return) {
-                    visit((Ast.Statement.Return) statement);
-                }
+                visit(statement);
             }
         } finally {
             scope = originalScope;
@@ -308,7 +309,6 @@ public final class Analyzer implements Ast.Visitor<Void> {
         }
         return null;
     }
-
 
 
     @Override
@@ -422,7 +422,6 @@ public final class Analyzer implements Ast.Visitor<Void> {
     }
 
 
-
     @Override
     public Void visit(Ast.Expression.Function ast) {
         Environment.Function function = scope.lookupFunction(ast.getName(), ast.getArguments().size());
@@ -438,7 +437,6 @@ public final class Analyzer implements Ast.Visitor<Void> {
         }
         return null;
     }
-
 
 
     @Override

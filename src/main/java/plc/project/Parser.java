@@ -325,34 +325,31 @@ public final class Parser {
      * statement, aka {@code LET}.
      */
     public Ast.Statement.Declaration parseDeclarationStatement() throws ParseException {
-        if(!tokens.has(0)) {
-            tokens.index--;
-            throw new ParseException("Missing", tokens.get(0).getIndex()+tokens.get(0).getLiteral().length());
+        if (!match("LET")) {
+            throw new ParseException("Expected 'LET'", tokens.has(0) ? tokens.get(0).getIndex() : 0);
         }
-        if (!match("LET"))
-            throw new ParseException("Expected 'LET'", tokens.get(0).getIndex());
-
+        if (!tokens.has(0) || tokens.get(0).getType() != Token.Type.IDENTIFIER) {
+            throw new ParseException("Expected identifier after 'LET'", tokens.has(0) ? tokens.get(0).getIndex() : tokens.index);
+        }
         Token nameToken = tokens.get(0);
-
-        if (!match(Token.Type.IDENTIFIER))
-            throw new ParseException("Expected identifier", nameToken.getIndex());
-
+        tokens.advance();
+        Optional<String> typeName = Optional.empty();
+        if (match(":")) {
+            if (!tokens.has(0) || tokens.get(0).getType() != Token.Type.IDENTIFIER) {
+                throw new ParseException("Expected type name after ':'", tokens.has(0) ? tokens.get(0).getIndex() : tokens.index);
+            }
+            Token typeToken = tokens.get(0);
+            typeName = Optional.of(typeToken.getLiteral());
+            tokens.advance();
+        }
         Optional<Ast.Expression> initializer = Optional.empty();
         if (match("=")) {
             initializer = Optional.of(parseExpression());
-            if(!tokens.has(0)) {
-                tokens.index--;
-                throw new ParseException("Missing Operand", tokens.get(0).getIndex()+tokens.get(0).getLiteral().length());
-            }
         }
-        if(!tokens.has(0)) {
-            tokens.index--;
-            throw new ParseException("Expected ';'", tokens.get(0).getIndex()+tokens.get(0).getLiteral().length());
+        if (!match(";")) {
+            throw new ParseException("Expected ';' after declaration", tokens.has(0) ? tokens.get(0).getIndex() : tokens.index);
         }
-        if (!match(";"))
-            throw new ParseException("Expected ';'", tokens.get(0).getIndex());
-
-        return new Ast.Statement.Declaration(nameToken.getLiteral(), initializer);
+        return new Ast.Statement.Declaration(nameToken.getLiteral(), typeName, initializer);
     } //TODO
 
     /**

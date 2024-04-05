@@ -57,6 +57,20 @@ public final class AnalyzerTests {
                                 )
                         ),
                         null
+                ),
+                // FUN main() DO print("Hello, World!"); END
+                Arguments.of("Invalid Return Type",
+                        new Ast.Source(
+                                Arrays.asList(),
+                                Arrays.asList(
+                                        new Ast.Function("main", Arrays.asList(), Arrays.asList(), Optional.empty(), Arrays.asList(
+                                                new Ast.Statement.Expression(new Ast.Expression.Function("print", Arrays.asList(
+                                                        new Ast.Expression.Literal("Hello, World!")
+                                                )))
+                                        ))
+                                )
+                        ),
+                        null
                 )
         );
     }
@@ -384,6 +398,41 @@ public final class AnalyzerTests {
                 )
         );
     }
+
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource
+    public void testWhileStatement(String test, Ast.Statement.While ast, Ast.Statement.While expected, Class<? extends Throwable> expectedException) {
+        if (expectedException == null) {
+            Analyzer analyzer = test(ast, expected, new Scope(null));
+            if (expected != null) {
+                Assertions.assertEquals(expected.getCondition(), ast.getCondition());
+            }
+        } else {
+            Assertions.assertThrows(expectedException, () -> test(ast, null, new Scope(null)));
+        }
+    }
+
+    private static Stream<Arguments> testWhileStatement() {
+        return Stream.of(
+                Arguments.of(
+                        "While: Valid Condition",
+                        // WHILE TRUE DO END
+                        new Ast.Statement.While(
+                                new Ast.Expression.Literal(Boolean.TRUE),
+                                Arrays.asList()
+                        ),
+                        init(new Ast.Statement.While(
+                                new Ast.Expression.Literal(Boolean.TRUE),
+                                Arrays.asList()
+                        ), ast -> {
+                            ((Ast.Expression.Literal) ast.getCondition()).setType(Environment.Type.BOOLEAN);
+                        }),
+                        null
+                )
+        );
+    }
+
 
     @ParameterizedTest(name = "{0}")
     @MethodSource
