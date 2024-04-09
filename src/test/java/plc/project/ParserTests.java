@@ -961,6 +961,14 @@ final class ParserTests {
                                 new Token(Token.Type.IDENTIFIER, "expr", 7)
                         ),
                         new ParseException("Missing ';'", 8)
+                ),
+                Arguments.of("Missing DO",
+                        Arrays.asList(
+                                // IF expr
+                                new Token(Token.Type.IDENTIFIER, "IF", 0),
+                                new Token(Token.Type.IDENTIFIER, "expr", 3)
+                        ),
+                        new ParseException("Missing 'DO' keyword", 4)
                 )
         );
     }
