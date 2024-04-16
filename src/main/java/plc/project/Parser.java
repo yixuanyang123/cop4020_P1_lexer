@@ -67,49 +67,33 @@ public final class Parser {
      * next token declares a list, aka {@code LIST}.
      */
     public Ast.Global parseList() throws ParseException {
-        if(!tokens.has(0)) {
-            tokens.index--;
-            throw new ParseException("Expected 'LIST'", tokens.get(0).getIndex()+tokens.get(0).getLiteral().length());
-        }
         if (!match("LIST"))
-            throw new ParseException("Expected 'LIST'", tokens.get(0).getIndex());
-
-
+            throw new ParseException("Expected 'LIST'", tokens.has(0) ? tokens.get(0).getIndex() : -1);
         Token nameToken = tokens.get(0);
-        if(!tokens.has(0)) {
-            tokens.index--;
-            throw new ParseException("Expected identifier", tokens.get(0).getIndex()+tokens.get(0).getLiteral().length());
-        }
         if (!match(Token.Type.IDENTIFIER))
-            throw new ParseException("Expected identifier", nameToken.getIndex());
-        if(!tokens.has(0)) {
-            tokens.index--;
-            throw new ParseException("Expected '='", tokens.get(0).getIndex()+tokens.get(0).getLiteral().length());
-        }
+            throw new ParseException("Expected identifier", tokens.has(0) ? tokens.get(0).getIndex() : -1);
+        if (!match(":"))
+            throw new ParseException("Expected ':' after identifier", tokens.has(0) ? tokens.get(0).getIndex() : -1);
+        Token typeToken = tokens.get(0);
+        if (!match(Token.Type.IDENTIFIER))
+            throw new ParseException("Expected type name", tokens.has(0) ? tokens.get(0).getIndex() : -1);
         if (!match("="))
-            throw new ParseException("Expected '='", tokens.get(0).getIndex());
-        if(!tokens.has(0)) {
-            tokens.index--;
-            throw new ParseException("Expected '['", tokens.get(0).getIndex()+tokens.get(0).getLiteral().length());
-        }
+            throw new ParseException("Expected '=' after type name", tokens.has(0) ? tokens.get(0).getIndex() : -1);
         if (!match("["))
-            throw new ParseException("Expected '['", tokens.get(0).getIndex());
-
-
+            throw new ParseException("Expected '[' to start list", tokens.has(0) ? tokens.get(0).getIndex() : -1);
         List<Ast.Expression> expressions = new ArrayList<>();
         while (!peek("]")) {
             expressions.add(parseExpression());
-            if(!tokens.has(0)) {
-                tokens.index--;
-                throw new ParseException("Expected ',' or ']'", tokens.get(0).getIndex()+tokens.get(0).getLiteral().length());
-            }
-            if (!match(",")) {
-                if (!peek("]")) throw new ParseException("Expected ',' or ']'", tokens.get(0).getIndex());
-            }
+            if (peek(","))
+                match(",");
+            else if (!peek("]"))
+                throw new ParseException("Expected ',' or ']' in list", tokens.has(0) ? tokens.get(0).getIndex() : -1);
         }
-        if (!match("]")) throw new ParseException("Expected ']'", tokens.get(0).getIndex());
-
-        return new Ast.Global(nameToken.getLiteral(), true, Optional.of(new Ast.Expression.PlcList(expressions)));
+        if (!match("]"))
+            throw new ParseException("Expected ']' to end list", tokens.has(0) ? tokens.get(0).getIndex() : -1);
+        if (!match(";"))
+            throw new ParseException("Expected ';' after list declaration", tokens.has(0) ? tokens.get(0).getIndex() : -1);
+        return new Ast.Global(nameToken.getLiteral(), typeToken.getLiteral(), true, Optional.of(new Ast.Expression.PlcList(expressions)));
     } //TODO
 
     /**
@@ -407,10 +391,10 @@ public final class Parser {
             throw new ParseException("Expected 'IF'", tokens.has(0) ? tokens.get(0).getIndex() : 0);
         Ast.Expression condition = parseExpression();
         if (!tokens.has(0) || !match("DO")) {
-            throw new ParseException("Expected 'DO'", tokens.has(0) ? tokens.get(0).getIndex() : tokens.index);
+            throw new ParseException("Missing 'DO' keyword", tokens.has(0) ? tokens.get(0).getIndex() : tokens.index);
         }
         List<Ast.Statement> thenBlock = parseBlock();
-        List<Ast.Statement> elseBlock = new java.util.ArrayList<>();
+        List<Ast.Statement> elseBlock = new ArrayList<>();
         if (match("ELSE")) {
             elseBlock = parseBlock();
         }

@@ -70,6 +70,54 @@ final class ParserModifiedTests {
                                         new Ast.Statement.Expression(new Ast.Expression.Access(Optional.empty(), "stmt"))
                                 )))
                         )
+                ),
+                Arguments.of("List - Singular",
+                        Arrays.asList(
+                                // LIST list: Type = [expr];
+                                new Token(Token.Type.IDENTIFIER, "LIST", 0),
+                                new Token(Token.Type.IDENTIFIER, "list", 5),
+                                new Token(Token.Type.OPERATOR, ":", 10),
+                                new Token(Token.Type.IDENTIFIER, "Type", 12),
+                                new Token(Token.Type.OPERATOR, "=", 17),
+                                new Token(Token.Type.OPERATOR, "[", 19),
+                                new Token(Token.Type.IDENTIFIER, "expr", 20),
+                                new Token(Token.Type.OPERATOR, "]", 24),
+                                new Token(Token.Type.OPERATOR, ";", 25)
+                        ),
+                        new Ast.Source(
+                                Arrays.asList(
+                                        new Ast.Global("list", "Type", true, Optional.of(new Ast.Expression.PlcList(Arrays.asList(
+                                                new Ast.Expression.Access(Optional.empty(), "expr")
+                                        ))))
+                                ),
+                                Arrays.asList()
+                        )
+                ),
+                Arguments.of("List - Multiples",
+                        Arrays.asList(
+                                // LIST list: Type = [expr1, expr2, expr3];
+                                new Token(Token.Type.IDENTIFIER, "LIST", 0),
+                                new Token(Token.Type.IDENTIFIER, "list", 5),
+                                new Token(Token.Type.OPERATOR, ":", 10),
+                                new Token(Token.Type.IDENTIFIER, "Type", 12),
+                                new Token(Token.Type.OPERATOR, "=", 17),
+                                new Token(Token.Type.OPERATOR, "[", 19),
+                                new Token(Token.Type.IDENTIFIER, "expr1", 20),
+                                new Token(Token.Type.OPERATOR, ",", 25),
+                                new Token(Token.Type.IDENTIFIER, "expr2", 27),
+                                new Token(Token.Type.OPERATOR, ",", 32),
+                                new Token(Token.Type.IDENTIFIER, "expr3", 34),
+                                new Token(Token.Type.OPERATOR, "]", 39),
+                                new Token(Token.Type.OPERATOR, ";", 40)
+                        ),
+                        new Ast.Source(
+                                Arrays.asList(new Ast.Global("list", "Type", true, Optional.of(new Ast.Expression.PlcList(Arrays.asList(
+                                        new Ast.Expression.Access(Optional.empty(), "expr1"),
+                                        new Ast.Expression.Access(Optional.empty(), "expr2"),
+                                        new Ast.Expression.Access(Optional.empty(), "expr3")
+                                ))))),
+                                Arrays.asList()
+                        )
                 )
         );
     }
