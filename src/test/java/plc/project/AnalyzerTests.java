@@ -9,6 +9,7 @@ import java.lang.reflect.Array;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
@@ -66,6 +67,32 @@ public final class AnalyzerTests {
                                         new Ast.Function("main", Arrays.asList(), Arrays.asList(), Optional.empty(), Arrays.asList(
                                                 new Ast.Statement.Expression(new Ast.Expression.Function("print", Arrays.asList(
                                                         new Ast.Expression.Literal("Hello, World!")
+                                                )))
+                                        ))
+                                )
+                        ),
+                        null
+                ),
+                /*
+                LIST list: Integer = [1, 2, 3];
+                FUN main(): Integer DO
+                print(list[1]);
+                END
+                 */
+                // This test case seems not passed
+                Arguments.of("Global List Initialization",
+                        new Ast.Source(
+                                Arrays.asList(
+                                        new Ast.Global("list", "List<Integer>", true, Optional.of(new Ast.Expression.PlcList(Arrays.asList(
+                                                new Ast.Expression.Literal(BigInteger.ONE),
+                                                new Ast.Expression.Literal(BigInteger.valueOf(2)),
+                                                new Ast.Expression.Literal(BigInteger.valueOf(3))
+                                        ))))
+                                ),
+                                Arrays.asList(
+                                        new Ast.Function("main", Arrays.asList(), Arrays.asList(), Optional.of("Integer"), Arrays.asList(
+                                                new Ast.Statement.Expression(new Ast.Expression.Function("print", Arrays.asList(
+                                                        new Ast.Expression.Access(Optional.empty(), "list[1]")
                                                 )))
                                         ))
                                 )
@@ -196,6 +223,23 @@ public final class AnalyzerTests {
                         // LET name: Unknown;
                         new Ast.Statement.Declaration("name", Optional.of("Unknown"), Optional.empty()),
                         null
+                ),
+//                Arguments.of("Valid Type",
+//                        // LET name: Integer = 1;
+//                        new Ast.Statement.Declaration("name", Optional.of("Integer"), Optional.of(new Ast.Expression.Literal(BigInteger.ONE))),
+//                        init(new Ast.Statement.Declaration("name", Optional.of("Integer"), Optional.of(new Ast.Expression.Literal(BigInteger.ONE))), ast -> {
+//                            ast.setVariable(new Environment.Variable("name", "name", Environment.Type.INTEGER, true, Environment.create(BigInteger.ONE)));
+//                        })
+//                ), // not sure if the test case is correct
+                Arguments.of("Invalid Type",
+                        // LET name: Integer = 1.0;
+                        new Ast.Statement.Declaration("name", Optional.of("Integer"), Optional.of(new Ast.Expression.Literal(new BigDecimal("1.0")))),
+                        null
+                ),
+                Arguments.of("Recursive Reference",
+                        // LET name: Integer = name;
+                        new Ast.Statement.Declaration("name", Optional.of("Integer"), Optional.of(new Ast.Expression.Access(Optional.empty(), "name"))),
+                        null // Expected to be null because this should result in a RuntimeException
                 )
         );
     }
@@ -228,6 +272,24 @@ public final class AnalyzerTests {
                                 new Ast.Expression.Literal("string")
                         ),
                         null
+                ),
+                Arguments.of("List Assignment",
+                        // list[1] = 7;
+                        new Ast.Statement.Assignment(
+                                new Ast.Expression.Access(Optional.of(new Ast.Expression.Literal(BigInteger.ONE)), "list"),
+                                new Ast.Expression.Literal(BigInteger.valueOf(7))
+                        ),
+                        null, // Expected to be null because the actual mutation of the list is not tracked by the Analyzer.
+                        init(new Scope(null), scope -> {
+                            // Define a list with initial values in the scope.
+                            Environment.Type listType = new Environment.Type("List<Integer>", "java.util.List", scope);
+                            List<Environment.PlcObject> initialList = Arrays.asList(
+                                    Environment.create(BigInteger.ONE),
+                                    Environment.create(BigInteger.valueOf(5)),
+                                    Environment.create(BigInteger.valueOf(10))
+                            );
+                            scope.defineVariable("list", "list", listType, true, Environment.create(initialList));
+                        })
                 )
         );
     }
@@ -433,7 +495,6 @@ public final class AnalyzerTests {
         );
     }
 
-
     @ParameterizedTest(name = "{0}")
     @MethodSource
     public void testLiteralExpression(String test, Ast.Expression.Literal ast, Ast.Expression.Literal expected) {
@@ -516,6 +577,18 @@ public final class AnalyzerTests {
                                 new Ast.Expression.Literal(BigDecimal.ONE)
                         ),
                         null
+                ),
+                Arguments.of("GT Comparable",
+                        // comparable > comparable
+                        new Ast.Expression.Binary(">",
+                                new Ast.Expression.Access(Optional.empty(), "comparable"),
+                                new Ast.Expression.Access(Optional.empty(), "comparable")
+                        ),
+                        null,
+                        init(new Scope(null), scope -> {
+                            Environment.Type comparableType = Environment.Type.COMPARABLE;
+                            scope.defineVariable("comparable", "comparable", comparableType, true, Environment.create(0));
+                        })
                 )
         );
     }
@@ -598,5 +671,4 @@ public final class AnalyzerTests {
         initializer.accept(value);
         return value;
     }
-
 }

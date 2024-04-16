@@ -139,12 +139,39 @@ public final class Analyzer implements Ast.Visitor<Void> {
         } else {
             throw new RuntimeException("Declaration must have a type or an initial value.");
         }
-        Environment.Variable variable = scope.defineVariable(ast.getName(), ast.getName(), type, true, Environment.NIL);
-        ast.setVariable(variable);
-        if (ast.getValue().isPresent()) {
-            requireAssignable(variable.getType(), ast.getValue().get().getType());
+        if (ast.getValue().isPresent() && ast.getValue().get() instanceof Ast.Expression.Access) {
+            Ast.Expression.Access access = (Ast.Expression.Access) ast.getValue().get();
+            if (access.getName().equals(ast.getName())) {
+                throw new RuntimeException("Recursive reference: Variable '" + ast.getName() + "' cannot be initialized with itself.");
+            }
         }
+        Environment.Variable variable = scope.defineVariable(ast.getName(), ast.getName(), type, true, Environment.NIL);
+        if (ast.getValue().isPresent() && ast.getValue().get() instanceof Ast.Expression.Literal) {
+            ((Ast.Expression.Literal) ast.getValue().get()).setType(type);
+            if (!isTypeCompatible(type, ((Ast.Expression.Literal) ast.getValue().get()).getLiteral())) {
+                throw new RuntimeException("Type mismatch: cannot assign " + ((Ast.Expression.Literal) ast.getValue().get()).getLiteral() + " to " + type.getName());
+            }
+            variable.setValue(Environment.create(((Ast.Expression.Literal) ast.getValue().get()).getLiteral()));
+        }
+        ast.setVariable(variable);
         return null;
+    }
+
+    private boolean isTypeCompatible(Environment.Type type, Object literal) {
+        switch (type.getName()) {
+            case "Integer":
+                return literal instanceof BigInteger;
+            case "Decimal":
+                return literal instanceof BigDecimal;
+            case "String":
+                return literal instanceof String;
+            case "Boolean":
+                return literal instanceof Boolean;
+            case "Character":
+                return literal instanceof Character;
+            default:
+                return false;
+        }
     }
 
 
@@ -412,6 +439,9 @@ public final class Analyzer implements Ast.Visitor<Void> {
 
     @Override
     public Void visit(Ast.Expression.Access ast) {
+        if (function != null && ast.getName().equals(function.getName()) && !ast.getOffset().isPresent()) {
+            throw new RuntimeException("Variable '" + ast.getName() + "' cannot be initialized with itself");
+        }
         Environment.Variable variable = scope.lookupVariable(ast.getName());
         if (variable == null) {
             throw new RuntimeException("Variable '" + ast.getName() + "' not found.");
