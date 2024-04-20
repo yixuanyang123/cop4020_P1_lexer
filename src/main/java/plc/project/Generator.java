@@ -37,27 +37,34 @@ public final class Generator implements Ast.Visitor<Void> {
     @Override
     public Void visit(Ast.Source ast) {
         print("public class Main {");
-        newline(1);
-        for (Ast.Global global : ast.getGlobals()) {
-            visit(global);
-            newline(0);
+        indent++;
+        if (!ast.getGlobals().isEmpty())
+        {
+            newline(--indent);
+
+            indent++;
+            for (Ast.Global global : ast.getGlobals()) {
+                newline(indent);
+                visit(global);
+            }
         }
-        for (Ast.Function function : ast.getFunctions()) {
-            newline(0);
-            visit(function);
-        }
-        if (ast.getFunctions().stream().anyMatch(f -> f.getName().equals("main"))) {
-        } else {
-            newline(0);
-            print("public static void main(String[] args) {");
-            newline(1);
-            print("System.exit(new Main().main());");
-            newline(0);
-            print("}");
-        }
+
         newline(0);
+        newline(indent);
+        print("public static void main(String[] args) {");
+        newline(++indent);
+        print("System.exit(new Main().main());");
+        newline(--indent);
         print("}");
-        writer.close();
+        newline(0);
+        indent--;
+        for (Ast.Function function : ast.getFunctions()) {
+            newline(++indent);
+            visit(function);
+//            indent--;
+        }
+        newline(indent);
+        print("}");
         return null;
     }
 
@@ -67,25 +74,36 @@ public final class Generator implements Ast.Visitor<Void> {
         if (!ast.getMutable()) {
             print("final ");
         }
-        if ("Decimal".equals(ast.getTypeName())) {
-            print("double[] ");
-        } else {
-            print(ast.getTypeName(), " ");
+        boolean isList = ast.getValue().isPresent() && ast.getValue().get() instanceof Ast.Expression.PlcList;
+        switch (ast.getTypeName()) {
+            case "Integer":
+                print(isList ? "int[]" : "int");
+                break;
+            case "Decimal":
+                print(isList ? "double[]" : "double");
+                break;
+            case "Boolean":
+                print(isList ? "boolean[]" : "boolean");
+                break;
+            case "Character":
+                print(isList ? "char[]" : "char");
+                break;
+            case "String":
+                print(isList ? "String[]" : "String");
+                break;
+            default:
+                print(ast.getTypeName());
+                break;
         }
-        print(ast.getName());
+        print(" ", ast.getName());
         if (ast.getValue().isPresent()) {
             print(" = ");
-            if ("List".equals(ast.getTypeName())) {
-                Ast.Expression.PlcList list = (Ast.Expression.PlcList) ast.getValue().get();
+            if (isList) {
                 print("{");
-                for (int i = 0; i < list.getValues().size(); i++) {
-                    Ast.Expression.Literal literal = (Ast.Expression.Literal) list.getValues().get(i);
-                    if (literal.getLiteral() instanceof BigDecimal) {
-                        print(((BigDecimal) literal.getLiteral()).toPlainString());
-                    } else {
-                        print(literal.getLiteral().toString());
-                    }
-                    if (i < list.getValues().size() - 1) {
+                List<Ast.Expression> elements = ((Ast.Expression.PlcList) ast.getValue().get()).getValues();
+                for (int i = 0; i < elements.size(); i++) {
+                    visit(elements.get(i));
+                    if (i < elements.size() - 1) {
                         print(", ");
                     }
                 }
@@ -133,14 +151,18 @@ public final class Generator implements Ast.Visitor<Void> {
             }
         }
         print(") {");
-        newline(++indent);
+//        newline(++indent);
+        indent = indent+1;
         for (Ast.Statement statement : ast.getStatements()) {
-            visit(statement);
             newline(indent);
+            visit(statement);
+//            newline(indent);
         }
-        newline(--indent);
+        if(ast.getStatements().size()!=0)
+            newline(--indent);
+        else indent--;
         print("}");
-        newline(0);
+        newline(--indent);
         return null;
     }
 
@@ -247,7 +269,6 @@ public final class Generator implements Ast.Visitor<Void> {
         visit(ast.getCondition());
         print(") {");
         newline(++indent);
-
         for (Ast.Statement.Case caseStmt : ast.getCases()) {
             if (!caseStmt.getValue().isPresent()) {
                 print("default:");
@@ -256,24 +277,18 @@ public final class Generator implements Ast.Visitor<Void> {
                 visit(caseStmt.getValue().get());
                 print(":");
             }
-            newline(++indent);
-
+            indent = indent+1;
             for (Ast.Statement statement : caseStmt.getStatements()) {
+                newline(indent);
                 visit(statement);
-                if (statement instanceof Ast.Statement.Expression || statement instanceof Ast.Statement.Assignment || statement instanceof Ast.Statement.Return) {
-                    print(";");
-                }
-                newline(indent);
             }
-
             if (caseStmt.getValue().isPresent()) {
-                print("break;");
                 newline(indent);
+                print("break;");
+                newline(--indent);
             }
-            newline(--indent);
         }
-
-        newline(--indent);
+        newline(indent-2);
         print("}");
         return null;
     }
@@ -314,7 +329,7 @@ public final class Generator implements Ast.Visitor<Void> {
         visit(ast.getCondition());
         print(") {");
         if (ast.getStatements().isEmpty()) {
-            print(" }");
+            print("}");
         } else {
             indent++;
             for (Ast.Statement statement : ast.getStatements()) {
